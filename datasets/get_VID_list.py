@@ -14,28 +14,33 @@ import xml.etree.ElementTree as ET
 import cv2
 import os
 
+#Leen
+PATH = '/media/leen/Acer_500GB_HDD/Imagenet_VID_dataset/ILSVRC'
+
 dirs = ['ILSVRC2015_VID_train_0000/',
 		'ILSVRC2015_VID_train_0001/',
 		'ILSVRC2015_VID_train_0002/',
 		'ILSVRC2015_VID_train_0003/']
-dirs_val = ['/media/sine/space/vikrant/ILSVRC2015/Data/VID/val/']
-dirs_test = ['/media/sine/space/vikrant/ILSVRC2015/Data/VID/test/']
+dirs_val = [PATH+'/Data/VID/val/']
+dirs_test = [PATH+'/Data/VID/test/']
+#dirs_val = ['/media/sine/space/vikrant/ILSVRC2015/Data/VID/val/']
+#dirs_test = ['/media/sine/space/vikrant/ILSVRC2015/Data/VID/test/']
 	
 
 
 
 file_write_obj = open('train_VID_list.txt','w')
 for dir in dirs:
-	seqs = np.sort(os.listdir(os.path.join('/media/sine/space/vikrant/ILSVRC2015/Data/VID/train/'+dir)))
+	seqs = np.sort(os.listdir(os.path.join(PATH+'/Data/VID/train/'+dir)))
 	for seq in seqs:
-		seq_path = os.path.join('/media/sine/space/vikrant/ILSVRC2015/Data/VID/train/',dir,seq)
+		seq_path = os.path.join(PATH+'/Data/VID/train/',dir,seq)
 		relative_path = dir + seq
 		image_list = np.sort(os.listdir(seq_path))
 		count = 0
 		for image in image_list:
 			image_id = image.split('.')[0]
 			anno_file = image_id + '.xml'
-			anno_path = os.path.join('/media/sine/space/vikrant/ILSVRC2015/Annotations/VID/train/',dir,seq,anno_file)
+			anno_path = os.path.join(PATH+'/Annotations/VID/train/',dir,seq,anno_file)
 			objects = ET.parse(anno_path).findall("object")
 			num_objs = len(objects)
 			if num_objs == 0: # discarding images without object
@@ -55,7 +60,7 @@ for dir in dirs_val:
 		for image in image_list:
 			image_id = image.split('.')[0]
 			anno_file = image_id + '.xml'
-			anno_path = os.path.join('/media/sine/space/vikrant/ILSVRC2015/Annotations/VID/val/',seq,anno_file)
+			anno_path = os.path.join(PATH+'/Annotations/VID/val/',seq,anno_file)
 			objects = ET.parse(anno_path).findall("object")
 			num_objs = len(objects)
 			if num_objs == 0:

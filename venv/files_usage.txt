@@ -1,0 +1,7 @@
+Leen Gadisseur
+
+evaluate.py
+	argumenten meegeven (geen default):
+		--trained_model
+		--dataset
+		--label_file (momenteel models/vid-models-labels.txt als default )

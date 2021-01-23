@@ -32,8 +32,11 @@ from dataloaders.data_preprocessing import TrainAugmentation, TestTransform
 parser = argparse.ArgumentParser(
 	description='Mobile Video Object Detection (Bottleneck LSTM) Training With Pytorch')
 
-parser.add_argument('--datasets', help='Dataset directory path')
-parser.add_argument('--cache_path', help='Cache directory path')
+#Twee onderstaanden zijn verplicht
+parser.add_argument('--datasets', help='Dataset directory path')#/media/leen/Acer_500GB_HDD/Imagenet_VID_dataset/ILSVRC
+parser.add_argument('--cache_path', help='Cache directory path')#./datasets/__pycache__
+
+
 parser.add_argument('--width_mult', default=1.0, type=float,
 					help='Width Multiplifier')
 
