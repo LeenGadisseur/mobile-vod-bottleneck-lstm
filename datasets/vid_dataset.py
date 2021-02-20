@@ -28,7 +28,7 @@ class VIDDataset:
 		self.is_test = is_test
 		self.is_val = is_val
 		if is_test:
-			image_sets_file = "datasets/test_VID_seqs_list.txt"
+			image_sets_file = "datasets/test_VID_seqs_list_correct.txt"
 		elif is_val:
 			image_sets_file = "datasets/val_VID_seqs_list.txt"
 		else:
@@ -61,9 +61,11 @@ class VIDDataset:
 	def __getitem__(self, index):
 		if self.is_test:
 			image_seq = self.seq_list[index]
+			print("__getitem__ image_seq", image_seq)
 			image_file = self.root / f"Data/VID/test/{image_seq}"
+			print("__getitem__ image_file", image_file)
 			image = cv2.imread(str(image_file))
-			image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+			#image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 			return image
 		else:
 			images = []

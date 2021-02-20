@@ -16,6 +16,8 @@ import numpy as np
 import logging
 
 
+
+
 def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0):
 	"""Replace Conv2d with a depthwise Conv2d and Pointwise Conv2d.
 	Arguments:
@@ -170,6 +172,61 @@ class MobileNetV1(nn.Module):
 		x = self.model(x)
 		return x
 
+#################################################################
+# Classe MobileNetV2 toevoegen.
+#################################################################
+class MobileNetV2(nn.Module):
+	def __init__(self, num_classes=1280, alpha=1):
+		""" torch.nn.module for mobilenetv2 
+		Arguments:
+			num_classes : an int variable having value of total number of classes
+			alpha : a float used as width multiplier for channels of model
+		"""
+		super(MobileNetV2, self).__init__()
+		# upto conv 12
+		self.model = nn.Sequential(
+			conv_bn(3, 32*alpha, 2),
+			conv_dw(32*alpha, 64*alpha, 1),
+			conv_dw(64*alpha, 128*alpha, 2),
+			conv_dw(128*alpha, 128*alpha, 1),
+			conv_dw(128*alpha, 256*alpha, 2),
+			conv_dw(256*alpha, 256*alpha, 1),
+			conv_dw(256*alpha, 512*alpha, 2),
+			conv_dw(512*alpha, 512*alpha, 1),
+			conv_dw(512*alpha, 512*alpha, 1),
+			conv_dw(512*alpha, 512*alpha, 1),
+			conv_dw(512*alpha, 512*alpha, 1),
+			conv_dw(512*alpha, 512*alpha, 1),
+			)
+		logging.info("Initializing weights of base net")
+		self._initialize_weights()
+		#self.fc = nn.Linear(1024, num_classes)
+	def _initialize_weights(self):
+		"""
+		Returns:
+			initialized weights of the model
+		"""
+		for m in self.modules():
+			if isinstance(m, nn.Conv2d):
+				nn.init.xavier_uniform_(m.weight)
+				if m.bias is not None:
+					m.bias.data.zero_()
+			elif isinstance(m, nn.BatchNorm2d):
+				m.weight.data.fill_(1)
+				m.bias.data.zero_()
+			
+	def forward(self, x):
+		"""
+		Arguments:
+			x : a tensor which is used as input for the model
+		Returns:
+			a tensor which is output of the model 
+		"""
+		x = self.model(x)
+		return x
+
+
+#################################################################
 
 class SSD(nn.Module):
 	def __init__(self,num_classes, alpha = 1, is_test=False, config = None, device = None):

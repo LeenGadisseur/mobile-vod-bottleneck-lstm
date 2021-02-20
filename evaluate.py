@@ -27,15 +27,19 @@ import numpy as np
 import logging
 import sys
 
-LABEL_PATH_DEFAULT ="./models/vid-model-labels.txt"
+DATASET_PATH_VID = "/media/leen/Acer_500GB_HDD/Imagenet_VID_dataset/ILSVRC/"
+LABEL_PATH_VID_DEFAULT ="./models/vid-model-labels.txt"
 
 
+
+
+# Verplichte ARGUMENTS = --trained_model --dataset 
 parser = argparse.ArgumentParser(description="MVOD Evaluation on VID dataset")
-parser.add_argument('--net', default="lstm5",
+parser.add_argument('--net', default="basenet",
 					help="The network architecture, it should be of basenet, lstm1, lstm2, lstm3, lstm4 or lstm5.")
-parser.add_argument("--trained_model", type=str)
-parser.add_argument("--dataset", type=str, help="The root directory of the VOC dataset or Open Images dataset.")
-parser.add_argument("--label_file", type=str, default = LABEL_PATH_DEFAULT, help="The label file path.")
+parser.add_argument("--trained_model", type=str, default = 'models/MVOD_SSD_mobilenetv1_params.pth' )
+parser.add_argument("--dataset", type=str, default = DATASET_PATH_VID , help="The root directory of the VOC dataset or Open Images dataset.")
+parser.add_argument("--label_file", type=str, default = LABEL_PATH_VID_DEFAULT, help="The label file path.")
 parser.add_argument("--use_cuda", type=str2bool, default=False)#origineel True,nu false vanwege verouderde cuda op gpu
 parser.add_argument("--nms_method", type=str, default="hard")
 parser.add_argument("--iou_threshold", type=float, default=0.5, help="The threshold of Intersection over Union.")
@@ -46,6 +50,7 @@ args = parser.parse_args()
 #origineel, aangepast vanwege slechte verouderde cude gpu
 #device = torch.device("cuda:0" if torch.cuda.is_available() and args.use_cuda else "cpu")
 device = torch.device("cpu")
+print("Argumenten aan het verwerken.")
 
 def group_annotation_by_class(dataset):
 	""" Groups annotations of dataset by class
