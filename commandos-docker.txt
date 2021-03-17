@@ -1,0 +1,31 @@
+#Build Image
+docker build -t cuda_test_leen .
+
+
+
+
+#interactive mode met docker directory
+docker run -it cuda_test_leen bash
+
+docker run -it -v /media/leen/Acer_500GB_HDD:/home/leen/Surveillance/mvod_app/mount_dataset cuda_test_leen bash
+
+
+#Zodat het GPU drivers vindt
+docker run -it --rm --gpus all -v /media/leen/Acer_500GB_HDD:/home/leen/Surveillance/mvod_app/mount_dataset cuda_test_leen bash
+
+geeft error: 
+Traceback (most recent call last):
+  File "evaluate_leen.py", line 202, in <module>
+    boxes, labels, probs = predictor.predict(image)
+  File "/home/leen/Surveillance/mvod_app/network/predictor.py", line 62, in predict
+    scores, boxes = self.net.forward(images)
+  File "/home/leen/Surveillance/mvod_app/network/mvod_basenet.py", line 503, in forward
+    confidences, locations = self.pred_decoder(x)
+  File "/usr/local/lib/python3.6/dist-packages/torch/nn/modules/module.py", line 727, in _call_impl
+    result = self.forward(*input, **kwargs)
+  File "/home/leen/Surveillance/mvod_app/network/mvod_basenet.py", line 473, in forward
+    locations, self.priors, self.config.center_variance, self.config.size_variance
+  File "/home/leen/Surveillance/mvod_app/utils/box_utils.py", line 104, in convert_locations_to_boxes
+    locations[..., :2] * center_variance * priors[..., 2:] + priors[..., :2],
+RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!
+

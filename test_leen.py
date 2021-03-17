@@ -23,22 +23,21 @@ if __name__ == '__main__':
 
 #################################
 #Model inladen van torch 
-	#model_torch = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True)
-	#for param_tensor in model_torch.state_dict():
-    	#	print(param_tensor, "\t", model_torch.state_dict()[param_tensor].size())
-	#model_torch.eval()
-	#print(model_torch)
+	mobV2 = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True)
+	#for param_tensor in mobV2.state_dict():
+    	#	print(param_tensor, "\t", mobV2.state_dict()[param_tensor].size())
+	print(mobV2)
 
 
 ###########################3
 #VOD model inladen beschikbaar in github
 	#initialeren sturcturen van netten	
 	ssd = SSD(KLASSEN_AANTAL)
-	#print(ssd)
+	print(ssd)
 	mobilenet = MobileNetV1()
-	#print(mobilenet)
+	print(mobilenet)
 	net = MobileVOD(mobilenet,ssd)
-	#print(net)
+	print(net)
 
 	#Inladen state dictionary voor gehele VOD model
 	net_params = torch.load('models/MVOD_SSD_mobilenetv1_params.pth',map_location=torch.device('cpu'))

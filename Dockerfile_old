@@ -1,0 +1,17 @@
+FROM python:3.6
+
+ENV VIRTUAL_ENV=./venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Install dependencies:
+COPY ./venv/requirements.txt .
+RUN pip3 install -r requirements.txt
+
+RUN . env/bin/activate
+
+
+# Run the application:
+COPY evaluate_leen.py .
+CMD ["python", "evaluate_leen.py"]
+

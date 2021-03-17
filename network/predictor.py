@@ -33,6 +33,7 @@ class Predictor:
 		self.nms_method = nms_method
 
 		self.sigma = sigma
+		print("Predictor arg device", device)
 		if device:
 			self.device = device
 		else:
