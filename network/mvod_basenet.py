@@ -188,7 +188,7 @@ class MobileNetV1(nn.Module):
 			conv_dw(512*alpha, 512*alpha, 1),
 			conv_dw(512*alpha, 512*alpha, 1),
 			conv_dw(512*alpha, 512*alpha, 1),
-			#conv_dw(512*alpha, 1024*alpha, 2),
+			#conv_dw(512*alpha, 1024*alpha, 2),#Deze staat bij SSD?
 			)
 		logging.info("Initializing weights of base net")
 		self._initialize_weights()
@@ -345,6 +345,7 @@ class SSD(nn.Module):
 		if is_test:
 			self.config = config
 			self.priors = config.priors.to(self.device)
+
 		self.conv13 = conv_dw(512*alpha, 1024*alpha, 2)
 		self.conv14 = conv_dw(1024*alpha,1024*alpha, 1) #to be pruned while adding LSTM layers
 		self.fmaps_1 = nn.Sequential(	

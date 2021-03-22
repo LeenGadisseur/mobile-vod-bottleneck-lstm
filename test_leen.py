@@ -46,7 +46,7 @@ if __name__ == '__main__':
 		#print(param_tensor, "\t", net.state_dict()[param_tensor].size())
 
 
-	#Dataset inladen
+	"""#Dataset inladen
 	VIDDataset = VIDDataset(ROOT_VIDDATASET, is_test= True)
 	l = VIDDataset.__len__()
 	print("Lengte: ", l)
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 		pred.predict(img)
 
 	
-	#Predictor gebruiken
+	#Predictor gebruiken"""
 	
 
 #################################
