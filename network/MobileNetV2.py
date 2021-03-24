@@ -38,7 +38,7 @@ def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=
 		nn.Conv2d(in_channels=int(in_channels), out_channels=int(out_channels), kernel_size=1),
 	)
 
-def conv_bn(inp, oup, stride):
+def conv_bn(inp, oup, stride, use_batch_norm=True):
 	"""3x3 conv with batchnorm and relu
 	Arguments:
 		inp : number of channels of input
@@ -47,13 +47,21 @@ def conv_bn(inp, oup, stride):
 	Returns:
 		object of class torch.nn.Sequential
 	"""
-	return nn.Sequential(
-				nn.Conv2d(int(inp), int(oup), 3, stride, 1, bias=False),
-				nn.BatchNorm2d(int(oup)),
-				nn.ReLU6(inplace=True)
-			)
+	if use_batch_norm:
+
+		return nn.Sequential(
+			nn.Conv2d(int(inp), int(oup), 3, stride, 1, bias=False),
+			nn.BatchNorm2d(int(oup)),
+			nn.ReLU6(inplace=True)
+		)
+	else:
+		return nn.Sequential(
+			nn.Conv2d(int(inp), int(oup), 3, stride, 1, bias=False),
+			nn.ReLU6(inplace=True)
+		)
+		
 #NEW
-def conv_1x1_bn(inp, oup):
+def conv_1x1_bn(inp, oup, use_batch_norm=True):
 	"""1x1 conv with batchnorm and relu
 	Arguments:
 		inp : number of channels of input
@@ -63,11 +71,18 @@ def conv_1x1_bn(inp, oup):
 		object of class torch.nn.Sequential
 	Afkomstig van zelfde github MobileNetv2 (zie link bij MobileNetV2)
 	"""
-	return nn.Sequential(
-		nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
-		nn.BatchNorm2d(oup),
-		nn.ReLU6(inplace=True)
-	)
+
+	if use_batch_norm:
+		return nn.Sequential(
+			nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
+			nn.BatchNorm2d(oup),
+			nn.ReLU6(inplace=True)
+		)
+	else:
+		return nn.Sequential(
+			nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
+			nn.ReLU6(inplace=True)
+		)
 
 
 def conv_dw(inp, oup, stride):
@@ -116,7 +131,7 @@ def _make_divisible(v, divisor, min_value=None):
 # https://github.com/d-li14/mobilenetv2.pytorch/blob/1733532bd43743442077326e1efc556d7cfd025d/models/imagenet/mobilenetv2.py#L91
 #################################################################
 class InvertedResidual(nn.Module):
-	def __init__(self, inp, oup, stride, expand_ratio):
+	def __init__(self, inp, oup, stride, expand_ratio, use_batch_norm=True):
 		super(InvertedResidual, self).__init__()
 		self.stride = stride
 		assert stride in [1, 2]
@@ -125,29 +140,52 @@ class InvertedResidual(nn.Module):
 		self.identity = self.stride == 1 and inp == oup
 
 		if expand_ratio == 1:
-			self.conv = nn.Sequential(
-			# dw
-			nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
-			nn.BatchNorm2d(hidden_dim),
-			nn.ReLU6(inplace=True),
-			# pw-linear
-			nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
-			nn.BatchNorm2d(oup),
-			)
+			if use_batch_norm:
+				self.conv = nn.Sequential(
+					# dw
+					nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
+					nn.BatchNorm2d(hidden_dim),
+					nn.ReLU6(inplace=True),
+					# pw-linear
+					nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+					nn.BatchNorm2d(oup),
+				)
+			else:
+				self.conv = nn.Sequential(
+					# dw
+					nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
+					nn.ReLU6(inplace=True),
+					# pw-linear
+					nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+					
+				)
 		else:
-			self.conv = nn.Sequential(
-			# pw
-			nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
-			nn.BatchNorm2d(hidden_dim),
-			nn.ReLU6(inplace=True),
-			# dw
-			nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
-			nn.BatchNorm2d(hidden_dim),
-			nn.ReLU6(inplace=True),
-			# pw-linear
-			nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
-			nn.BatchNorm2d(oup),
-			)
+			if use_batch_norm:			
+				self.conv = nn.Sequential(
+					# pw
+					nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
+					nn.BatchNorm2d(hidden_dim),
+					nn.ReLU6(inplace=True),
+					# dw
+					nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
+					nn.BatchNorm2d(hidden_dim),
+					nn.ReLU6(inplace=True),
+					# pw-linear
+					nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+					nn.BatchNorm2d(oup),
+				)
+			else:
+				self.conv = nn.Sequential(
+					# pw
+					nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
+					nn.ReLU6(inplace=True),
+					# dw
+					nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
+					nn.ReLU6(inplace=True),
+					# pw-linear
+					nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+				)
+				
 	def forward(self, x):
 		if self.identity:
 			return x + self.conv(x)
@@ -157,7 +195,7 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV2(nn.Module):
-	def __init__(self, num_classes=1000, width_mult=1.):
+	def __init__(self, num_classes=1000, width_mult=1., use_batch_norm=True):
 		super(MobileNetV2, self).__init__()
 		# setting of inverted residual blocks
 		self.cfgs = [
@@ -179,9 +217,9 @@ class MobileNetV2(nn.Module):
 		block = InvertedResidual
 		for t, c, n, s in self.cfgs:
 			output_channel = _make_divisible(c * width_mult, 4 if width_mult == 0.1 else 8)
-		for i in range(n):
-			layers.append(block(input_channel, output_channel, s if i == 0 else 1, t))
-			input_channel = output_channel
+			for i in range(n):
+				layers.append(block(input_channel, output_channel, s if i == 0 else 1, expand_ratio=t , use_batch_norm=use_batch_norm))
+				input_channel = output_channel
 		self.features = nn.Sequential(*layers)
 
 		# building last several layers
@@ -191,7 +229,7 @@ class MobileNetV2(nn.Module):
 		self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
 		
 		#FC - uitzetten voor SSD gebruik
-		#self.classifier = nn.Linear(output_channel, num_classes)
+		self.classifier = nn.Linear(output_channel, num_classes)
 
 		self._initialize_weights()
 
@@ -208,12 +246,12 @@ class MobileNetV2(nn.Module):
 			if isinstance(m, nn.Conv2d):
 				n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
 				m.weight.data.normal_(0, math.sqrt(2. / n))
-			if m.bias is not None:
-				m.bias.data.zero_()
+				if m.bias is not None:
+					m.bias.data.zero_()
 			elif isinstance(m, nn.BatchNorm2d):
 				m.weight.data.fill_(1)
 				m.bias.data.zero_()
 			elif isinstance(m, nn.Linear):
 				m.weight.data.normal_(0, 0.01)
 				m.bias.data.zero_()
-#################################################################
+

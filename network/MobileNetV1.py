@@ -52,7 +52,7 @@ def conv_dw(inp, oup, stride):
 			)
 
 #########################################################################################
-# Klassen: MobileNetV1, Inverted residuals, MobileNetV2, SSD, MobileVOD 
+# Klassen: MobileNetV1
 #########################################################################################
 
 class MobileNetV1(nn.Module):
@@ -63,7 +63,7 @@ class MobileNetV1(nn.Module):
 			alpha : a float used as width multiplier for channels of model
 		"""
 		super(MobileNetV1, self).__init__()
-		# upto conv 12, 13e lijkt ook nog van mobilenet, fout?
+
 		self.model = nn.Sequential(
 			conv_bn(3, 32*alpha, 2),
 			conv_dw(32*alpha, 64*alpha, 1),
@@ -77,13 +77,15 @@ class MobileNetV1(nn.Module):
 			conv_dw(512*alpha, 512*alpha, 1),
 			conv_dw(512*alpha, 512*alpha, 1),
 			conv_dw(512*alpha, 512*alpha, 1),
-			#conv_dw(512*alpha, 1024*alpha, 2),#Deze staat bij SSD?
-			conv_dw(512*alpha, 1024*alpha, 2)
+			conv_dw(512*alpha, 1024*alpha, 2),
 			conv_dw(1024*alpha,1024*alpha, 1) #to be pruned while adding LSTM layers
 			)
+
+		self.fc = nn.Linear(1024, num_classes)
+
 		logging.info("Initializing weights of base net")
 		self._initialize_weights()
-		#self.fc = nn.Linear(1024, num_classes)
+
 	def _initialize_weights(self):
 		"""
 		Returns:
@@ -106,5 +108,8 @@ class MobileNetV1(nn.Module):
 			a tensor which is output of the model 
 		"""
 		x = self.model(x)
+		x = self.F.avg_pool2d(x,7)
+		x = x.view(-1,1024)
+		x = self.fc(x)
 		return x
 

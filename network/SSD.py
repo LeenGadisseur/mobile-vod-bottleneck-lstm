@@ -8,12 +8,19 @@ from typing import List, Tuple
 from utils import box_utils
 from collections import namedtuple
 from collections import OrderedDict
+from .MobileNetV1 import MobileNetV1
+from .MobileNetV2 import MobileNetV2, InvertedResidual
+from .config import mobilenetv1_ssd_config as config
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
 import numpy as np
 import logging
+
+
+GraphPath = namedtuple("GraphPath", ['s0', 'name', 's1'])  #
 
 def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0):
 	"""Replace Conv2d with a depthwise Conv2d and Pointwise Conv2d.
@@ -34,117 +41,106 @@ def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=
 	)
 
 
-def mobv1_ssd_create(num_classes, is_test=False):
+def mobv1_ssdlite_create(num_classes, alpha=1., is_test=False):
+	alpha_base = alpha	
+	alpha_ssd = 0.5*alpha
+	alpha_lstm = 0.25*alpha
 
-	extras = ModuleList([
+	basenet = MobileNetV1(1001).model 
+
+	#source_layer_indexes = [12,14,]
+
+	extras = nn.ModuleList([
 		nn.Sequential(	
-			nn.Conv2d(in_channels=int(1024*alpha), out_channels=int(256*alpha), kernel_size=1),
+			nn.Conv2d(in_channels=int(1024*alpha_ssd), out_channels=int(256*alpha_ssd), kernel_size=1),
 			nn.ReLU6(inplace=True),
-			SeperableConv2d(in_channels=256*alpha, out_channels=512*alpha, kernel_size=3, stride=2, padding=1),
-		)
+			SeperableConv2d(in_channels=256*alpha_ssd, out_channels=512*alpha_ssd, kernel_size=3, stride=2, padding=1),
+		),
 		nn.Sequential(	
-			nn.Conv2d(in_channels=int(256*alpha), out_channels=int(128*alpha), kernel_size=1),
+			nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=int(128*alpha_ssd), kernel_size=1),
 			nn.ReLU6(inplace=True),
-			SeperableConv2d(in_channels=128*alpha, out_channels=256*alpha, kernel_size=3, stride=2, padding=1),
-		)
+			SeperableConv2d(in_channels=128*alpha_ssd, out_channels=256*alpha_ssd, kernel_size=3, stride=2, padding=1),
+		),
 
 		nn.Sequential(	
-			nn.Conv2d(in_channels=int(256*alpha), out_channels=int(128*alpha), kernel_size=1),
+			nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=int(128*alpha_ssd), kernel_size=1),
 			nn.ReLU6(inplace=True),
-			SeperableConv2d(in_channels=128*alpha, out_channels=256*alpha, kernel_size=3, stride=2, padding=1),
-		)
+			SeperableConv2d(in_channels=128*alpha_ssd, out_channels=256*alpha_ssd, kernel_size=3, stride=2, padding=1),
+		),
 		nn.Sequential(	
-			nn.Conv2d(in_channels=int(256*alpha), out_channels=int(128*alpha), kernel_size=1),
+			nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=int(128*alpha_ssd), kernel_size=1),
 			nn.ReLU6(inplace=True),
-			SeperableConv2d(in_channels=128*alpha, out_channels=256*alpha, kernel_size=3, stride=2, padding=1),
+			SeperableConv2d(in_channels=128*alpha_ssd, out_channels=256*alpha_ssd, kernel_size=3, stride=2, padding=1),
 		)
 	])
 
 		
 	regression_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=1024*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		nn.Conv2d(in_channels=int(256*alpha), out_channels=6 * 4, kernel_size=1),
+		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=1024*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=6 * 4, kernel_size=1),
 	])
 
 	classification_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=1024*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		nn.Conv2d(in_channels=int(256*alpha), out_channels=6 * num_classes, kernel_size=1),
+		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=1024*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=6 * num_classes, kernel_size=1),
 	])
 
-	SSD = SSD(num_classes, extras, classification_headers, regression_headers, is_test=is_test, config=config)
+	ssd =  SSD(num_classes=num_classes, basenet=basenet, extras=extras, classification_headers=classification_headers, regression_headers=regression_headers, is_test=is_test, config=config)
 
-	return SSD
+	return ssd
 
 
-def mobv2_ssdlite_create(num_classes, width_mult=1.0, use_batch_norm=True, onnx_compatible=False, is_test=False):
-	extras = ModuleList([
-		InvertedResidual(1280, 512, stride=2, expand_ratio=0.2),
-		InvertedResidual(512, 256, stride=2, expand_ratio=0.25),
-		InvertedResidual(256, 256, stride=2, expand_ratio=0.5),
-		InvertedResidual(256, 64, stride=2, expand_ratio=0.25)
-	])
+def mobv2_ssdlite_create(num_classes, alpha=1.0, use_batch_norm=True, is_test=False):
+
+	alpha_base = alpha	
+	alpha_ssd = 0.5*alpha
+	alpha_lstm = 0.25*alpha	
+
+	basenet = MobileNetV2(width_mult=alpha_base, use_batch_norm=use_batch_norm).features
+	
+
+	#source_layer_indexes = [GraphPath(14, 'conv', 3), 19,]
+	
+	extras = nn.ModuleList([
+		InvertedResidual(int(1280*alpha_ssd), int(512*alpha_ssd), stride=2, expand_ratio=0.2, use_batch_norm=use_batch_norm),
+		InvertedResidual(int(512*alpha_ssd), int(256*alpha_ssd), stride=2, expand_ratio=0.25, use_batch_norm=use_batch_norm),
+		InvertedResidual(int(256*alpha_ssd), int(256*alpha_ssd), stride=2, expand_ratio=0.5, use_batch_norm=use_batch_norm),
+		InvertedResidual(int(256*alpha_ssd), int(64*alpha_ssd), stride=2, expand_ratio=0.25, use_batch_norm=use_batch_norm)
+	])	
+
 	regression_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=1024*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		nn.Conv2d(in_channels=int(256*alpha), out_channels=6 * 4, kernel_size=1),
+		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=1024*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=6 * 4, kernel_size=1)
 	])
 
 	classification_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=1024*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		nn.Conv2d(in_channels=int(256*alpha), out_channels=6 * num_classes, kernel_size=1),
+		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=1024*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=6 * num_classes, kernel_size=1)
 	])
 
-	SSD = SSD(num_classes, extras, classification_headers, regression_headers, is_test=is_test, config=config)
+	ssd = SSD(num_classes=num_classes, basenet=basenet, extras=extras, classification_headers=classification_headers, regression_headers=regression_headers, is_test=is_test, config=config)
 
-	return SSD
+	return ssd
 
-
-def mobv2_ssdlite_create(num_classes, width_mult=1.0, use_batch_norm=True, onnx_compatible=False, is_test=False):
-	extras = ModuleList([
-		InvertedResidual(1280, 512, stride=2, expand_ratio=0.2),
-		InvertedResidual(512, 256, stride=2, expand_ratio=0.25),
-		InvertedResidual(256, 256, stride=2, expand_ratio=0.5),
-		InvertedResidual(256, 64, stride=2, expand_ratio=0.25)
-	])
-	regression_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=1024*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * 4, kernel_size=3, padding=1),
-		nn.Conv2d(in_channels=int(256*alpha), out_channels=6 * 4, kernel_size=1),
-	])
-
-	classification_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=1024*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=512*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=256*alpha, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		nn.Conv2d(in_channels=int(256*alpha), out_channels=6 * num_classes, kernel_size=1),
-	])
-
-	SSD = SSD(num_classes, extras, classification_headers, regression_headers, is_test=is_test, config=config)
-
-	return SSD
 
 class SSD(nn.Module):
-	def __init__(self, num_classes, alpha = 1, is_test=False, config = None, device = None):
+	def __init__(self, num_classes,  basenet, extras, classification_headers, regression_headers, alpha = 1, is_test=False, config = None, device = None):
 		"""
 		Arguments:
 			num_classes : an int variable having value of total number of classes
@@ -153,7 +149,10 @@ class SSD(nn.Module):
 			config : a dict containing all the configuration parameters 
 		"""
 		super(SSD, self).__init__()
+		self.basenet = basenet
+		
 		# Decoder
+		#self.source_layer_indexes = source_layer_indexes
 		self.extras = extras
 		self.classification_headers = classification_headers
 		self.regression_headers = regression_headers
@@ -161,7 +160,7 @@ class SSD(nn.Module):
 		self.is_test = is_test
 		self.config = config
 		self.num_classes = num_classes
-
+		
 
 		if device:
 			self.device = device
@@ -226,10 +225,12 @@ class SSD(nn.Module):
 		locations.append(location)
 		x = self.conv13(x)
 		x = self.conv14(x)
-		confidence, location = self.compute_header(header_index, x)
-		header_index += 1
-		confidences.append(confidence)
-		locations.append(location)
+
+		for layer in self.basenet: 
+			confidence, location = self.compute_header(header_index, x)
+			header_index += 1
+			confidences.append(confidence)
+			locations.append(location)
 
 		for layer in self.extras:
 			x = layer(x)
