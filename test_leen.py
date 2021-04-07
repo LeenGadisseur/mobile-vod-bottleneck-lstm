@@ -33,11 +33,11 @@ if __name__ == '__main__':
 #VOD model inladen beschikbaar in github
 	#initialeren sturcturen van netten	
 	ssd = SSD(KLASSEN_AANTAL)
-	print(ssd)
+	#print(ssd)
 	mobilenet = MobileNetV1()
-	print(mobilenet)
+	#print(mobilenet)
 	net = MobileVOD(mobilenet,ssd)
-	print(net)
+	#print(net)
 
 	#Inladen state dictionary voor gehele VOD model
 	net_params = torch.load('models/MVOD_SSD_mobilenetv1_params.pth',map_location=torch.device('cpu'))

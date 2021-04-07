@@ -33,24 +33,19 @@ class EPFLDataset:
 		#self.is_test = is_test
 		self.is_val = is_val
 		if is_val:
-			image_sets_file = "datasets/val_VID_seqs_list.txt"
+			image_sets_file = "datasets/val_EPFL_seqs_list.txt"
 		else:
-			image_sets_file = "datasets/train_VID_seqs_list.txt"
+			image_sets_file = "datasets/train_EPFL_seqs_list.txt"
 		self.seq_list = EPFLDataset._read_image_seq_ids(image_sets_file)
 		rem = len(self.seq_list)%batch_size
 		self.seq_list = self.seq_list[:-(rem)]
 		#logging.info("using default Imagenet VID classes.")
 		self._classes_names = ['__background__',  # always index 0
-					'PERSON']
-		"""self._classes_map = ['__background__',  # always index 0
-						'n02691156', 'n02419796', 'n02131653', 'n02834778',
-						'n01503061', 'n02924116', 'n02958343', 'n02402425',
-						'n02084071', 'n02121808', 'n02503517', 'n02118333',
-						'n02510455', 'n02342885', 'n02374451', 'n02129165',
-						'n01674464', 'n02484322', 'n03790512', 'n02324045',
-						'n02509815', 'n02411705', 'n01726692', 'n02355227',
-						'n02129604', 'n04468005', 'n01662784', 'n04530566',
-						'n02062744', 'n02391049']"""
+					'person']
+
+		#Klassen in de annotatie files
+		self._classes_map = ['__background__',  # always index 0
+						'"PERSON"']
 
 		self._name_to_class = {self._classes_map[i]: self._classes_names[i] for i in range(len(self._classes_names))}
 		self._class_to_ind = {class_name: i for i, class_name in enumerate(self._classes_names)}
@@ -81,9 +76,9 @@ class EPFLDataset:
 		:return: imdb[image_index]['boxes', 'gt_classes', 'gt_overlaps', 'flipped']
 		"""
 		if self.is_val:
-			cache_file = os.path.join(self.root, 'val_VID_seq_gt_db.pkl')
+			cache_file = os.path.join(self.root, 'val_EPFL_seq_gt_db.pkl')
 		else:
-			cache_file = os.path.join(self.root, 'train_VID_seq_gt_db.pkl')
+			cache_file = os.path.join(self.root, 'train_EPFL_seq_gt_db.pkl')
 		if os.path.exists(cache_file):
 			with open(cache_file, 'rb') as fid:
 				roidb = pickle.load(fid)

@@ -159,7 +159,7 @@ def select_model(args):
 		parser.print_help(sys.stderr)
 		sys.exit(1)  
 
-	return pred_enc, pred_dec, net
+	return net
 
 
 if __name__ == '__main__':
@@ -172,7 +172,7 @@ if __name__ == '__main__':
 	num_classes = len(dataset._classes_names)
 	true_case_stat, all_gb_boxes = group_annotation_by_class(dataset)
 	
-	pred_enc, pred_dec, net = select_model(args)
+	net = select_model(args)
 
 	print("Loading the model...")
 	timer.start("Load Model")

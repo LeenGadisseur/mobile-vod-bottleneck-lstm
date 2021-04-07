@@ -220,11 +220,14 @@ class MobileNetV2(nn.Module):
 			for i in range(n):
 				layers.append(block(input_channel, output_channel, s if i == 0 else 1, expand_ratio=t , use_batch_norm=use_batch_norm))
 				input_channel = output_channel
-		self.features = nn.Sequential(*layers)
+		
 
 		# building last several layers
 		output_channel = _make_divisible(1280 * width_mult, 4 if width_mult == 0.1 else 8) if width_mult > 1.0 else 1280
 		self.conv = conv_1x1_bn(input_channel, output_channel)
+		layers.append(self.conv)
+		self.features = nn.Sequential(*layers)
+
 		#self.avgpool = nn.AdaptiveAvgPool2d((1, 1)) #origineel
 		self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
 		
