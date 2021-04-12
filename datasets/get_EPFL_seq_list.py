@@ -85,7 +85,7 @@ for dir in dirs:
 		print('\t',"Processing: ", seq_path)
 		image_list = np.sort(os.listdir(seq_path))
 		for image in image_list:
-			file_write_obj.writelines(seq+'/'+image)
+			file_write_obj.writelines(dir + seq+'/'+image)
 			file_write_obj.write('\n')
 
 file_write_obj.close()

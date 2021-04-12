@@ -286,6 +286,7 @@ class ImagenetDataset:
 		roi_rec['boxes'] = np.array(boxes, dtype=np.float32)
 		roi_rec['labels'] = np.array(labels, dtype=np.int64)
 		return roi_rec
+
 	def image_path_from_index(self, image_id):
 		"""
 		given image index, find out full path

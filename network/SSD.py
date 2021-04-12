@@ -521,13 +521,13 @@ class SSD(nn.Module):
 			#Doorloop basenet van start tot end layer
 			for layer in self.base_net[start_layer_index: end_layer_index]:
 				x = layer(x)
-				print("Base_net layer")
-				print(layer)
+				#print("Base_net layer")
+				#print(layer)
 
 			if added_layer:
-				print("Added layer")
+				#print("Added layer")
 				y = added_layer(x)
-				print(layer)
+				#print(layer)
 			else:
 				y = x
 			
@@ -535,15 +535,15 @@ class SSD(nn.Module):
 			if path:
 				sub = getattr(self.base_net[end_layer_index], path.name)
 				for layer in sub[:path.s1]:
-					print("Path - layer")
+					#print("Path - layer")
 					x = layer(x)
-					print(layer)
+					#print(layer)
 				y = x
 				for layer in sub[path.s1:]:
 					x = layer(x)
-					print(layer)
+					#print(layer)
 			#End_layer_index verhogen, start_layer_index vervangen
-			print("headers inc")
+			#print("headers inc")
 			end_layer_index += 1
 			start_layer_index = end_layer_index
 			#Berekenen header en inc header index
@@ -556,13 +556,13 @@ class SSD(nn.Module):
 		# Doorlopen lagen van basenet, die niet bij in SSD zitten voor predicties (headers) 
 		for layer in self.base_net[end_layer_index:]: 
 			x = layer(x)
-			print("Laatste basenet laag")
-			print(layer)
+			#print("Laatste basenet laag")
+			#print(layer)
 
 		for layer in self.extras:
 			x = layer(x)
-			print("Extra laag")
-			print(layer)
+			#print("Extra laag")
+			#print(layer)
 			confidence, location = self.compute_header(header_index, x)
 			header_index += 1
 			confidences.append(confidence)

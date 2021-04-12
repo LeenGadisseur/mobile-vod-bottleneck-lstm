@@ -25,7 +25,7 @@ dirs = ['Basketball/',
 dirs_val = PATH+'/Data/val/'
 dirs_test = PATH+'/Data/test/'
 
-
+"""
 file_write_obj = open('train_EPFL_list.txt','w')
 print("Writing file train_EPFL_list.txt :")
 for dir in dirs:
@@ -51,7 +51,7 @@ for dir in dirs:
 				count = count + 1
 				file_write_obj.writelines(relative_path+'/'+image_id)
 				file_write_obj.write('\n')
-file_write_obj.close()
+file_write_obj.close()"""
 
 print("Writing file val_EPFL_list.txt :")
 file_write_obj = open('val_EPFL_list.txt','w')
@@ -77,7 +77,7 @@ for dir in dirs:
 				continue
 			else:
 				count = count + 1
-				file_write_obj.writelines(seq+'/'+image_id)
+				file_write_obj.writelines(dir + seq+'/'+image_id)
 				file_write_obj.write('\n')
 
 
@@ -95,7 +95,7 @@ for dir in dirs:
 		#print("seq_path:",seq_path)
 		image_list = np.sort(os.listdir(seq_path))
 		for image in image_list:
-			file_write_obj.writelines(seq+'/'+image)
+			file_write_obj.writelines(dir + seq+'/'+image)
 			file_write_obj.write('\n')
 
 file_write_obj.close()
