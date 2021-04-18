@@ -38,13 +38,13 @@ class EPFLDataset:
 			image_sets_file = "datasets/train_EPFL_seqs_list.txt"
 
 		self.seq_list = EPFLDataset._read_image_seq_ids(image_sets_file)
-		print("Seq_list:", self.seq_list)
+		#print("Seq_list:", self.seq_list)
 		rem = len(self.seq_list)%batch_size
 		if rem==0:
 			self.seq_list =self.seq_list
 		else:
 			self.seq_list = self.seq_list[:-(rem)]
-		print("Seq_list:", self.seq_list)
+		#print("Seq_list:", self.seq_list)
 		#logging.info("using default Imagenet VID classes.")
 		self._classes_names = ['__background__',  # always index 0
 					'person']
@@ -98,9 +98,10 @@ class EPFLDataset:
 			logging.info('gt roidb loaded from {}'.format(cache_file))
 			return roidb"""
 
-		print(self.seq_list)
+		#print(self.seq_list)
+		print("Loading annos...")
 		gt_roidb = [self.load_EPFL_annotation(index) for index in range(0, len(self.seq_list))]
-		print(gt_roidb)#print geeft lege boxes en labels
+		#print(gt_roidb)#print geeft lege boxes en labels
 		with open(cache_file, 'wb') as fid:
 			pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
 		logging.info('wrote gt roidb to {}'.format(cache_file))
@@ -113,7 +114,7 @@ class EPFLDataset:
 		:param index: index of a specific image
 		:return: record['boxes', 'labels']
 		"""
-		print("Loading annos.")
+		#print("Loading annos.")
 		image_seq = self.seq_list[i]
 		image_ids = image_seq.split(',')
 		images = []

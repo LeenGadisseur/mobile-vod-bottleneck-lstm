@@ -45,10 +45,12 @@ parser.add_argument('--lr', '--learning-rate', default=0.0003, type=float,
 					help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float,
 					help='Momentum value for optim')
+
 parser.add_argument('--weight_decay', default=5e-4, type=float,
 					help='Weight decay for SGD')
 parser.add_argument('--gamma', default=0.1, type=float,
 					help='Gamma update for SGD')
+
 parser.add_argument('--base_net_lr', default=None, type=float,
 					help='initial learning rate for base net.')
 parser.add_argument('--ssd_lr', default=None, type=float,

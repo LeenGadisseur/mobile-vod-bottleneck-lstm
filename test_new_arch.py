@@ -76,7 +76,11 @@ if __name__=='__main__':
 	#print(img.shape)
 	model = select_model(args)
 	#print(model)
-	
+	#for param in model.base_net.parameters():
+			#print("Param: ", param)
+
+	#for name in model.base_net.named_parameters():
+		#print("param name:", name)
 	#train_transform = TrainAugmentation(config.image_size, config.image_mean, config.image_std)
 	#target_transform = MatchPrior(config.priors, config.center_variance,config.size_variance, 0.5)
 
@@ -93,9 +97,9 @@ if __name__=='__main__':
 	
 
 	pretrained_net_dict = torch.load(args.trained_model,map_location=lambda storage, loc: storage)
-	#for k,v in pretrained_net_dict.items():
-	#	if k == 'base_net.1.3.weight':
-	#		print(k)c
+	for k,v in pretrained_net_dict.items():
+		if k == 'base_net.1.3.weight':
+			print(k)
 	#		print(v)
 	#		print(type(pretrained_net_dict))
 	model.load_state_dict(torch.load(args.trained_model, map_location=lambda storage, loc: storage))	
@@ -110,6 +114,7 @@ if __name__=='__main__':
 
 	#boxes, labels, probs = predictor.predict(img)
 	print("Dataset lengte:", len(dataset))
+	exit(0)
 	seq_counter = 0
 	for i in range(len(dataset)):
 		print(i)

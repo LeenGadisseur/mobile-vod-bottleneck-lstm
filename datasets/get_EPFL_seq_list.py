@@ -38,8 +38,8 @@ for dir in dirs:
 		for image in image_list:
 			image_id = image.split('.')[0]
 			
-			#Frames beginnen bij 1, annotaties bij 0
-			image_id = str(int(image_id)-1).zfill(5)
+			#Frames beginnen bij 1, annotaties bij 0 => niet nodig, files zijn aangepast
+			image_id = str(int(image_id)).zfill(5)
 			anno_file = image_id + '.xml'
 			anno_path = os.path.join('/media/leen/Acer_500GB_HDD/EPFL/Annotations/train/',dir,seq,anno_file)
 			objects = ET.parse(anno_path).findall("object")

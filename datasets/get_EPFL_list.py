@@ -25,7 +25,7 @@ dirs = ['Basketball/',
 dirs_val = PATH+'/Data/val/'
 dirs_test = PATH+'/Data/test/'
 
-"""
+
 file_write_obj = open('train_EPFL_list.txt','w')
 print("Writing file train_EPFL_list.txt :")
 for dir in dirs:
@@ -39,8 +39,8 @@ for dir in dirs:
 		count = 0
 		for image in image_list:
 			image_id = image.split('.')[0]
-			#Frames beginnen bij 1, annotaties bij 0
-			image_id = str(int(image_id)-1).zfill(5)
+			#Frames beginnen bij 1, annotaties bij 0 => niet meer nodig, files zijn
+			image_id = str(int(image_id)).zfill(5)
 			anno_file = image_id + '.xml'
 			anno_path = os.path.join(PATH+'/Annotations/train/',dir,seq,anno_file)
 			objects = ET.parse(anno_path).findall("object")
@@ -51,7 +51,7 @@ for dir in dirs:
 				count = count + 1
 				file_write_obj.writelines(relative_path+'/'+image_id)
 				file_write_obj.write('\n')
-file_write_obj.close()"""
+file_write_obj.close()
 
 print("Writing file val_EPFL_list.txt :")
 file_write_obj = open('val_EPFL_list.txt','w')
@@ -67,8 +67,8 @@ for dir in dirs:
 		#print(image_list)
 		for image in image_list:
 			image_id = image.split('.')[0]
-			#Frames beginnen bij 1, annotaties bij 0
-			image_id = str(int(image_id)-1).zfill(5)
+			#Frames beginnen bij 1, annotaties bij 0 => niet meer nodig, files zijn aangepast
+			image_id = str(int(image_id)).zfill(5)
 			anno_file = image_id + '.xml'
 			anno_path = os.path.join(PATH+'/Annotations/val/',dir,seq,anno_file)
 			objects = ET.parse(anno_path).findall("object")
