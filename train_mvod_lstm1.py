@@ -124,6 +124,7 @@ def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1, 
 		images, boxes, labels = data
 		for image, box, label in zip(images, boxes, labels):
 			image = image.to(device)
+			print("fn_img:", image.filename)
 			box = box.to(device)
 			label = label.to(device)
 

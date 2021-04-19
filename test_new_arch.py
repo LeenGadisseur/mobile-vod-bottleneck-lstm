@@ -93,13 +93,11 @@ if __name__=='__main__':
 	
 	num_classes = len(dataset._classes_names)
 	print("Number of classes: ",num_classes)
-	
-	
 
 	pretrained_net_dict = torch.load(args.trained_model,map_location=lambda storage, loc: storage)
 	for k,v in pretrained_net_dict.items():
-		if k == 'base_net.1.3.weight':
-			print(k)
+		print(k)
+			#pretrained_net_dict.fromkeys()
 	#		print(v)
 	#		print(type(pretrained_net_dict))
 	model.load_state_dict(torch.load(args.trained_model, map_location=lambda storage, loc: storage))	

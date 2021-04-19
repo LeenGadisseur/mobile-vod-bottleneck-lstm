@@ -65,6 +65,7 @@ class EPFLDataset:
 		labels_seq = data['labels_seq']
 		images_seq = data['images_seq']
 		images = []
+		print("Lengte ", len(images_seq))
 		for i in range(0,len(images_seq)):
 			print("image seq",images_seq[i])
 			image = self._read_image(images_seq[i])
@@ -187,10 +188,11 @@ class EPFLDataset:
 		with open(image_sets_file) as f:
 			for line in f:
 				seq_list.append(line.rstrip())
+		#print("Image_seqs_file: ",seq_list)
 		return seq_list
 
 	def _read_image(self, image_file):
-		print("Image_file: ",image_file)
+		#print("Image_file: ",image_file)
 		image = cv2.imread(str(image_file))
 		image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 		return image

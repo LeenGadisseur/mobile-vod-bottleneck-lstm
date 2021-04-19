@@ -86,12 +86,12 @@ parser.add_argument('--t_max', default=120, type=float,
 					help='T_max value for Cosine Annealing Scheduler.')
 
 # Train params
-parser.add_argument('--batch_size', default=1, type=int,
+parser.add_argument('--batch_size', default=10, type=int,
 					help='Batch size for training')
 parser.add_argument('--num_epochs', default=200, type=int,
 					help='the number epochs')
 parser.add_argument('--num_workers', default=4, type=int,
-					help='Number of workers used in dataloading')
+					help='Number of workers used in dataloading')#  4 lijkt alsof het niet sequentieel gebeurt bij het uitprinten, 1 lijkt wel sequentieel
 parser.add_argument('--validation_epochs', default=5, type=int,
 					help='the number epochs')
 parser.add_argument('--debug_steps', default=100, type=int,
@@ -153,7 +153,7 @@ def load_EPFL_dataset(args):
 def train(loader, model, criterion, optimizer, device, debug_steps=100, epoch=-1, sequence_length=10):
 	""" Train model
 	Arguments:
-		model : object of MobileVOD class
+		model : object of SSD class
 		loader : validation data loader object
 		criterion : Loss function to use
 		device : device on which computation is done
@@ -199,6 +199,58 @@ def train(loader, model, criterion, optimizer, device, debug_steps=100, epoch=-1
 			running_classification_loss = 0.0
 	model.detach_hidden()
 
+def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epoch=-1, sequence_length=10):
+	""" Train model
+	Arguments:
+		model : object of MobileVOD class
+		loader : validation data loader object
+		criterion : Loss function to use
+		device : device on which computation is done
+		optimizer : optimizer to optimize model
+		debug_steps : number of steps after which model needs to debug
+		sequence_length : unroll length of model
+		epoch : current epoch number
+	"""
+	model.train(True)
+	running_loss = 0.0
+	running_regression_loss = 0.0
+	running_classification_loss = 0.0
+	for i, data in enumerate(loader):
+		#print("Training i: ", i)
+		images, boxes, labels = data
+		for image, box, label in zip(images, boxes, labels):
+			#print("Lus")
+			image = image.to(device)
+			box = box.to(device)
+			label = label.to(device)
+
+			optimizer.zero_grad()
+			confidence, locations = model(image)
+			regression_loss, classification_loss = criterion(confidence, locations, label, box)  # TODO CHANGE BOXES
+			loss = regression_loss + classification_loss
+			loss.backward(retain_graph=True)
+			optimizer.step()
+
+			running_loss += loss.item()
+			running_regression_loss += regression_loss.item()
+			running_classification_loss += classification_loss.item()
+		model.detach_hidden()
+		if i and i % debug_steps == 0:
+			avg_loss = running_loss / (debug_steps*sequence_length)
+			avg_reg_loss = running_regression_loss / (debug_steps*sequence_length)
+			avg_clf_loss = running_classification_loss / (debug_steps*sequence_length)
+			logging.info(
+				f"Epoch: {epoch}, Step: {i}, " +
+				f"Average Loss: {avg_loss:.4f}, " +
+				f"Average Regression Loss {avg_reg_loss:.4f}, " +
+				f"Average Classification Loss: {avg_clf_loss:.4f}"
+			)
+			running_loss = 0.0
+			running_regression_loss = 0.0
+			running_classification_loss = 0.0
+	model.detach_hidden()
+
+
 
 def val(loader, model, criterion, device):
 	""" Validate model
@@ -242,12 +294,12 @@ def initialize_model(model):
 	if args.pretrained:
 		logging.info("Loading weights from pretrained netwok")
 		pretrained_net_dict = torch.load(args.pretrained)
-		model_dict = net.state_dict()
+		model_dict = model.state_dict()
 		# 1. filter out unnecessary keys
 		pretrained_dict = {k: v for k, v in pretrained_net_dict.items() if k in model_dict and model_dict[k].shape == pretrained_net_dict[k].shape}
 		# 2. overwrite entries in the existing state dict
 		model_dict.update(pretrained_dict)
-		net.load_state_dict(model_dict)
+		model.load_state_dict(model_dict)
 	#enkel pretrained gewichten voor base_net
 	model.base_net.load_state_dict(base_net_dict)
 
@@ -273,10 +325,10 @@ if __name__=='__main__':
 
 	logging.info(f"Stored labels into file {label_file}.")
 	logging.info("Train dataset size: {}".format(len(train_dataset)))
-	train_loader = DataLoader(train_dataset, args.batch_size, num_workers=args.num_workers, shuffle=True)#Shuffle??? num_workers = threads?
+	train_loader = DataLoader(train_dataset, args.batch_size, num_workers=args.num_workers, shuffle=True, drop_last=True) #Shufflet sequenties van 10 (verschillende mappen)
 
 	logging.info("validation dataset size: {}".format(len(val_dataset)))
-	val_loader = DataLoader(val_dataset, args.batch_size, num_workers=args.num_workers, shuffle=False) #Shuffle false??
+	val_loader = DataLoader(val_dataset, args.batch_size, num_workers=args.num_workers, shuffle=False, drop_last=True) #Shuffle false, houdt mappen volgorde aan
 
 	#Weights
 	logging.info("Build network.")
@@ -285,6 +337,7 @@ if __name__=='__main__':
 	if args.resume is None:
 		initialize_model(model)
 	else:
+		
 		model = select_model(args)
 		print("Updating weights from resume model")
 		resume_dict = torch.load(args.resume, map_location=lambda storage, loc: storage)
@@ -314,6 +367,7 @@ if __name__=='__main__':
 	model.to(DEVICE)
 
 	#wat?
+	#combinatie tussen  classification loss en Smooth L1 regression loss
 	criterion = MultiboxLoss(config.priors, iou_threshold=0.5, neg_pos_ratio=3,
 							 center_variance=0.1, size_variance=0.2, device=DEVICE)
 
@@ -322,13 +376,14 @@ if __name__=='__main__':
 								weight_decay=args.weight_decay)
 	logging.info(f"Learning rate: {args.lr}, Base net learning rate: {base_net_lr}, "
 				 + f"Extra Layers learning rate: {ssd_lr}.")
-"""
 
+
+	#Gebruik van scheduler = decays lr met gamma na een milestone aantal epochs
 	# if args.scheduler == 'multi-step':
 	# 	logging.info("Uses MultiStepLR scheduler.")
 	# 	milestones = [int(v.strip()) for v in args.milestones.split(",")]
 	# 	scheduler = MultiStepLR(optimizer, milestones=milestones,
-	# 												 gamma=0.1, last_epoch=last_epoch)
+	# 					gamma=0.1, last_epoch=last_epoch)
 	# elif args.scheduler == 'cosine':
 	# 	logging.info("Uses CosineAnnealingLR scheduler.")
 	# 	scheduler = CosineAnnealingLR(optimizer, args.t_max, last_epoch=last_epoch)
@@ -336,17 +391,17 @@ if __name__=='__main__':
 	# 	logging.fatal(f"Unsupported Scheduler: {args.scheduler}.")
 	# 	parser.print_help(sys.stderr)
 	# 	sys.exit(1)
-	output_path = os.path.join(args.checkpoint_folder, f"lstm3")
+	output_path = os.path.join(args.checkpoint_folder, f"mb2-ssdl-lstm3")
 	if not os.path.exists(output_path):
 		os.makedirs(os.path.join(output_path))
 	logging.info(f"Start training from epoch {last_epoch + 1}.")
 	for epoch in range(last_epoch + 1, args.num_epochs):
 		#scheduler.step()
-		train(train_loader, net, criterion, optimizer,
+		test_train(train_loader, model, criterion, optimizer,
 			  device=DEVICE, debug_steps=args.debug_steps, epoch=epoch, sequence_length=args.sequence_length)
 		
 		if epoch % args.validation_epochs == 0 or epoch == args.num_epochs - 1:
-			val_loss, val_regression_loss, val_classification_loss = val(val_loader, net, criterion, DEVICE)
+			val_loss, val_regression_loss, val_classification_loss = val(val_loader, model, criterion, DEVICE)
 			logging.info(
 				f"Epoch: {epoch}, " +
 				f"Validation Loss: {val_loss:.4f}, " +
@@ -354,10 +409,10 @@ if __name__=='__main__':
 				f"Validation Classification Loss: {val_classification_loss:.4f}"
 			)
 			model_path = os.path.join(output_path, f"WM-{args.width_mult}-Epoch-{epoch}-Loss-{val_loss}.pth")
-			torch.save(net.state_dict(), model_path)
+			torch.save(model.state_dict(), model_path)
 			logging.info(f"Saved model {model_path}")
 
 
-"""
+
 
 	
