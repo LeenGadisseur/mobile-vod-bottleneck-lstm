@@ -40,12 +40,13 @@ DATASET_PATH_VID_MOUNTED ="./mount_dataset/Imagenet_VID_dataset/ILSVRC/"
 DATASET_PATH_EPFL = "/media/leen/Acer_500GB_HDD/EPFL/"
 DATASET_PATH_EPFL_MOUNTED ="./mount_dataset/EPFL/"
 LABEL_PATH_VID_DEFAULT ="./models/vid-model-labels.txt"
+HIDDEN = False #indien gebruik lstm (hidden_channels)
 
 #Parser
 parser = argparse.ArgumentParser(
 	description='Mobile Video Object Detection (Bottleneck LSTM) Training With Pytorch')
 parser.add_argument('--net', default="mobv2-ssdl",
-					help="The network architecture, it should be of mobv1-ssdl, mobv2-ssdl, mobv1-ssdl-lstm3, mobv2-ssdl-lstm3")
+					help="The network architecture, it should be of mobv1-ssdl, mobv2-ssdl, mobv1-ssdl-lstm4, mobv2-ssdl-lstm4")
 parser.add_argument('--datasets', default = DATASET_PATH_EPFL, help='Dataset directory path')
 parser.add_argument('--cache_path', default = DATASET_PATH_EPFL, help='Cache directory path')
 parser.add_argument('--freeze_net', action='store_true',
@@ -69,8 +70,9 @@ parser.add_argument('--ssd_lr', default=None, type=float,
 
 
 # Params for loading pretrained basenet or checkpoints.
-parser.add_argument('--pretrained', help='Pre-trained model')
-parser.add_argument('--resume', default= 'models/mb2-ssd-lite-mp-0_686.pth', type=str,
+parser.add_argument('--pretrained', default= None , help='Pre-trained model')
+parser.add_argument('--pretrained_base_net',default= 'models/mb2-ssd-lite-mp-0_686.pth' , help='Pre-trained model, from which only the base_net weights are extracted.')
+parser.add_argument('--resume', default= None , type=str,
 					help='Checkpoint state_dict file to resume training from')
 
 # Scheduler
@@ -86,8 +88,8 @@ parser.add_argument('--t_max', default=120, type=float,
 					help='T_max value for Cosine Annealing Scheduler.')
 
 # Train params
-parser.add_argument('--batch_size', default=10, type=int,
-					help='Batch size for training')
+parser.add_argument('--batch_size', default=2, type=int,
+					help='Batch size for training')# batch_size moet groter dan 1 zijn! anders Value error (heeft te maken met mean nemen), normaal gezien 10, maar dat kan de GPU niet aan (cuda runs out of memory)
 parser.add_argument('--num_epochs', default=200, type=int,
 					help='the number epochs')
 parser.add_argument('--num_workers', default=4, type=int,
@@ -115,24 +117,35 @@ if args.use_cuda and torch.cuda.is_available():
 	logging.info("Use Cuda.")
 
 #Definities
-def select_model(args):#predictors hierbijzetten?
-	if args.net == 'mobv1-ssdl':
-		model = net.mobv1_ssdlite_create(num_classes = 1024, alpha=args.width_mult, is_test=False)
-
-	elif args.net == 'mobv2-ssdl':
-		model = net.mobv2_ssdlite_create(num_classes = 21, alpha=args.width_mult, is_test=False)
-
-	elif args.net == 'mobv1-ssdl-lstm3':
-		model = net.mobv2_ssdlite_lstm3_create(num_classes = 1024, alpha=args.width_mult, is_test=False)
+def select_model(args, num_classes):#predictors hierbijzetten?
 	
-	elif args.net == 'mobv2-ssdl-lstm3':
-		model = net.mobv2_ssdlite_lstm3_create(num_classes = 21, alpha=args.width_mult, is_test=False)
+	if args.net == 'mobv1-ssdl':
+		#num_classes = 1024
+		model = net.mobv1_ssdlite_create(num_classes = 1024, alpha=args.width_mult, is_test=False)
+		HIDDEN = False
+	elif args.net == 'mobv2-ssdl':
+		#num_classes = 21
+		model = net.mobv2_ssdlite_create(num_classes = 21, alpha=args.width_mult, is_test=False)
+		HIDDEN = False
+	elif args.net == 'mobv1-ssdl-lstm4':
+		#num_classes = 1024
+		model = net.mobv2_ssdlite_lstm4_create(num_classes = num_classes, alpha=args.width_mult, batch_size=args.batch_size, is_test=False)
+		HIDDEN = True
+	elif args.net == 'mobv2-ssdl-lstm4':
+		#num_classes = 21
+		model = net.mobv2_ssdlite_lstm4_create(num_classes = num_classes, alpha=args.width_mult, batch_size=args.batch_size, is_test=False)
+		HIDDEN = True
+	
+	elif args.net == 'mobv2-ssdl-IR-lstm4':
+		#num_classes = 21
+		model = net.mobv2_ssdlite_lstm4_IR_create(num_classes = num_classes, alpha=args.width_mult, batch_size=args.batch_size, is_test=False)
+		HIDDEN = True
 
 	else:
-		logging.fatal("The net type is wrong. It should be one of mobv1-ssdl, mobv2-ssdl, mobv1-ssdl-lstm3, mobv2-ssdl-lstm3.")
+		logging.fatal("The net type is wrong. It should be one of mobv1-ssdl, mobv2-ssdl, mobv1-ssdl-lstm4, mobv2-ssdl-lstm4, mobv2-ssdl-IR-lstm4.")
 		parser.print_help(sys.stderr)
 		sys.exit(1)  
-
+	print("Model in gebruik: ", args.net)
 	return model
 
 def load_EPFL_dataset(args):
@@ -183,6 +196,7 @@ def train(loader, model, criterion, optimizer, device, debug_steps=100, epoch=-1
 			running_loss += loss.item()
 			running_regression_loss += regression_loss.item()
 			running_classification_loss += classification_loss.item()
+		
 		model.detach_hidden()
 		if i and i % debug_steps == 0:
 			avg_loss = running_loss / (debug_steps*sequence_length)
@@ -196,7 +210,7 @@ def train(loader, model, criterion, optimizer, device, debug_steps=100, epoch=-1
 			)
 			running_loss = 0.0
 			running_regression_loss = 0.0
-			running_classification_loss = 0.0
+			running_classification_loss = 0.0 
 	model.detach_hidden()
 
 def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epoch=-1, sequence_length=10):
@@ -234,7 +248,8 @@ def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epo
 			running_loss += loss.item()
 			running_regression_loss += regression_loss.item()
 			running_classification_loss += classification_loss.item()
-		model.detach_hidden()
+		if HIDDEN : 
+			model.detach_hidden()
 		if i and i % debug_steps == 0:
 			avg_loss = running_loss / (debug_steps*sequence_length)
 			avg_reg_loss = running_regression_loss / (debug_steps*sequence_length)
@@ -248,8 +263,8 @@ def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epo
 			running_loss = 0.0
 			running_regression_loss = 0.0
 			running_classification_loss = 0.0
-	model.detach_hidden()
-
+	if HIDDEN : 
+		model.detach_hidden()
 
 
 def val(loader, model, criterion, device):
@@ -291,6 +306,7 @@ def initialize_model(model):
 	Arguments:
 		model : object of SSD
 	"""
+	#pretrained gewichten voor 
 	if args.pretrained:
 		logging.info("Loading weights from pretrained netwok")
 		pretrained_net_dict = torch.load(args.pretrained)
@@ -300,8 +316,18 @@ def initialize_model(model):
 		# 2. overwrite entries in the existing state dict
 		model_dict.update(pretrained_dict)
 		model.load_state_dict(model_dict)
+
 	#enkel pretrained gewichten voor base_net
-	model.base_net.load_state_dict(base_net_dict)
+	if args.pretrained_base_net:
+		dict_base = {}
+		pretrained_net_dict = torch.load(args.pretrained_base_net)
+		for k,v in pretrained_net_dict.items():
+			if'base_net' in k:
+				#print(k)
+				new_k = k.replace('base_net.','')
+				dict_base[new_k] = v
+				#keys.append(k)
+		model.base_net.load_state_dict(dict_base)
 
 
 #Main
@@ -332,16 +358,19 @@ if __name__=='__main__':
 
 	#Weights
 	logging.info("Build network.")
-	model = select_model(args)
+	model = select_model(args, num_classes)
 		#Pretrained weights of resume
+
 	if args.resume is None:
-		initialize_model(model)
+		logging.info("Initializing weights network.")
+		initialize_model(model) #initialiseerd gewichten van alles incl basenet, laad pre-trained model of pretrained_base_net 
+		#XXXXinladen weights van pre-trained mobilenetv2
+		 
 	else:
-		
-		model = select_model(args)
-		print("Updating weights from resume model")
+		logging.info("Resume weights network.")
 		resume_dict = torch.load(args.resume, map_location=lambda storage, loc: storage)
 		model.load_state_dict(resume_dict)
+	
 
 
 
@@ -391,7 +420,7 @@ if __name__=='__main__':
 	# 	logging.fatal(f"Unsupported Scheduler: {args.scheduler}.")
 	# 	parser.print_help(sys.stderr)
 	# 	sys.exit(1)
-	output_path = os.path.join(args.checkpoint_folder, f"mb2-ssdl-lstm3")
+	output_path = os.path.join(args.checkpoint_folder, f"mb2-ssdl")
 	if not os.path.exists(output_path):
 		os.makedirs(os.path.join(output_path))
 	logging.info(f"Start training from epoch {last_epoch + 1}.")

@@ -65,9 +65,9 @@ class EPFLDataset:
 		labels_seq = data['labels_seq']
 		images_seq = data['images_seq']
 		images = []
-		print("Lengte ", len(images_seq))
+		#print("Lengte ", len(images_seq))
 		for i in range(0,len(images_seq)):
-			print("image seq",images_seq[i])
+			#print("image seq",images_seq[i])
 			image = self._read_image(images_seq[i])
 			boxes = boxes_seq[i]
 			labels = labels_seq[i]

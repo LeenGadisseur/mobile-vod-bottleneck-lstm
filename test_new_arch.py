@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-
+Testfile om verschillende kleinde dingen uit te testen vooralleer te implementeren in andere scripten
 """
 import cv2
 import torch
@@ -49,21 +49,25 @@ device = torch.device("cuda:0" if torch.cuda.is_available() and args.use_cuda el
 print("Device:", device)
 print("Argumenten verwerkt.")
 
-def select_model(args):#predictors hierbijzetten?
+def select_model(args):
+	batch_size = 2
 	if args.net == 'mobv1-ssdl':
 		model = net.mobv1_ssdlite_create(num_classes = 1024, alpha=args.width_mult, is_test=False)
 
 	elif args.net == 'mobv2-ssdl':
 		model = net.mobv2_ssdlite_create(num_classes = 21, alpha=args.width_mult, is_test=False)
 
-	elif args.net == 'mobv1-ssdl-lstm3':
-		model = net.mobv2_ssdlite_lstm3_create(num_classes = 1024, alpha=args.width_mult, is_test=False)
+	elif args.net == 'mobv1-ssdl-lstm4':
+		model = net.mobv1_ssdlite_lstm4_create(num_classes = 1024, alpha=args.width_mult, batch_size=batch_size, is_test=False)
 	
-	elif args.net == 'mobv2-ssdl-lstm3':
-		model = net.mobv2_ssdlite_lstm3_create(num_classes = 21, alpha=args.width_mult, is_test=False)
+	elif args.net == 'mobv2-ssdl-lstm4':
+		model = net.mobv2_ssdlite_lstm4_create(num_classes = 21, alpha=args.width_mult, batch_size=batch_size, is_test=False)
+
+	elif args.net == 'mobv2-ssdl-IR-lstm4':
+		model = net.mobv2_ssdlite_IR_lstm4_create(num_classes = 21, alpha=args.width_mult, batch_size=batch_size, is_test=False)
 
 	else:
-		logging.fatal("The net type is wrong. It should be one of mobv1-ssdl, mobv2-ssdl, mobv1-ssdl-lstm3, mobv2-ssdl-lstm3.")
+		logging.fatal("The net type is wrong. It should be one of mobv1-ssdl, mobv2-ssdl, mobv1-ssdl-lstm4, mobv2-ssdl-lstm4, mobv2-ssdl-IR-lstm4.")
 		parser.print_help(sys.stderr)
 		sys.exit(1)  
 
@@ -74,34 +78,56 @@ if __name__=='__main__':
 	timer = Timer()
 	#img = cv2.imread('dog.jpg')
 	#print(img.shape)
+
+	"""Netwerk selectie"""
 	model = select_model(args)
 	#print(model)
-	#for param in model.base_net.parameters():
-			#print("Param: ", param)
+	print(args.net)
 
+	#for param in model.base_net.parameters():
+	#		print("Param: ", param)
+
+	"""Gewichten inladen"""
+	pretrained_net_dict = torch.load(args.trained_model,map_location=lambda storage, loc: storage)
+	#keys = []
+	#DICTIONARY ENKEL VOOR MOBILENETV2
+	dict_base = {}
+	for k,v in pretrained_net_dict.items():
+		if'base_net' in k:
+			print(k)
+			new_k = k.replace('base_net.','')
+			dict_base[new_k] = v
+			#keys.append(k)
+	
+	for k,v in dict_base.items():
+		print(k)
+			#keys.append(k)
+
+	
+			#pretrained_net_dict.fromkeys()
+	#		print(v)
+	#		print(type(pretrained_net_dict))
 	#for name in model.base_net.named_parameters():
 		#print("param name:", name)
+	#model.load_state_dict(torch.load(args.trained_model, map_location=lambda storage, loc: storage))
+	model.base_net.load_state_dict(dict_base)
+
+	"""Transforms"""
 	#train_transform = TrainAugmentation(config.image_size, config.image_mean, config.image_std)
 	#target_transform = MatchPrior(config.priors, config.center_variance,config.size_variance, 0.5)
 
 
-	train_dataset = EPFLDataset(DATASET_PATH_EPFL, DATASET_PATH_EPFL, batch_size = 10, is_val=False, label_file = LABEL_PATH_EPFL_DEFAULT)
-	#val_dataset = EPFLDataset(DATASET_PATH_EPFL, DATASET_PATH_EPFL, batch_size = 10, is_val=True, label_file = LABEL_PATH_EPFL_DEFAULT)
+	"""Dataset"""
+	train_dataset = EPFLDataset(DATASET_PATH_EPFL, DATASET_PATH_EPFL, batch_size = 2, is_val=False, label_file = LABEL_PATH_EPFL_DEFAULT)
+	#val_dataset = EPFLDataset(DATASET_PATH_EPFL, DATASET_PATH_EPFL, batch_size = 2, is_val=True, label_file = LABEL_PATH_EPFL_DEFAULT)
 	#print(val_dataset)
 
 	dataset = train_dataset
-	
 	num_classes = len(dataset._classes_names)
 	print("Number of classes: ",num_classes)
-
-	pretrained_net_dict = torch.load(args.trained_model,map_location=lambda storage, loc: storage)
-	for k,v in pretrained_net_dict.items():
-		print(k)
-			#pretrained_net_dict.fromkeys()
-	#		print(v)
-	#		print(type(pretrained_net_dict))
-	model.load_state_dict(torch.load(args.trained_model, map_location=lambda storage, loc: storage))	
+	print("Dataset lengte:", len(dataset))
 	
+	"""Predictor"""
 	predictor = Predictor(model, config.image_size, config.image_mean,
                           config.image_std,
                           nms_method=args.nms_method,
@@ -111,8 +137,9 @@ if __name__=='__main__':
                           device=device)
 
 	#boxes, labels, probs = predictor.predict(img)
-	print("Dataset lengte:", len(dataset))
 	exit(0)
+
+	"""Testing"""
 	seq_counter = 0
 	for i in range(len(dataset)):
 		print(i)

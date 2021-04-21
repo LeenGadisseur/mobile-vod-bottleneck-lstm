@@ -190,6 +190,7 @@ class InvertedResidual(nn.Module):
 		if self.identity:
 			return x + self.conv(x)
 		else:
+			#print("Forward MB2 - IR")
 			return self.conv(x)
 
 
@@ -215,10 +216,12 @@ class MobileNetV2(nn.Module):
 
 		# building inverted residual blocks
 		block = InvertedResidual
+		#print("Block: ", block)
 		for t, c, n, s in self.cfgs:
 			output_channel = _make_divisible(c * width_mult, 4 if width_mult == 0.1 else 8)
 			for i in range(n):
 				layers.append(block(input_channel, output_channel, s if i == 0 else 1, expand_ratio=t , use_batch_norm=use_batch_norm))
+				#print("Blokken kanelen in: ", input_channel, "out: ", output_channel)
 				input_channel = output_channel
 		
 
