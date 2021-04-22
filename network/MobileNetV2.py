@@ -52,12 +52,12 @@ def conv_bn(inp, oup, stride, use_batch_norm=True):
 		return nn.Sequential(
 			nn.Conv2d(int(inp), int(oup), 3, stride, 1, bias=False),
 			nn.BatchNorm2d(int(oup)),
-			nn.ReLU6(inplace=True)
+			nn.ReLU6(inplace=False)
 		)
 	else:
 		return nn.Sequential(
 			nn.Conv2d(int(inp), int(oup), 3, stride, 1, bias=False),
-			nn.ReLU6(inplace=True)
+			nn.ReLU6(inplace=False)
 		)
 		
 #NEW
@@ -76,12 +76,12 @@ def conv_1x1_bn(inp, oup, use_batch_norm=True):
 		return nn.Sequential(
 			nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
 			nn.BatchNorm2d(oup),
-			nn.ReLU6(inplace=True)
+			nn.ReLU6(inplace=False)
 		)
 	else:
 		return nn.Sequential(
 			nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
-			nn.ReLU6(inplace=True)
+			nn.ReLU6(inplace=False)
 		)
 
 
@@ -98,11 +98,11 @@ def conv_dw(inp, oup, stride):
 	return nn.Sequential(
 				nn.Conv2d(int(inp), int(inp), 3, stride, 1, groups=int(inp), bias=False),
 				nn.BatchNorm2d(int(inp)),
-				nn.ReLU6(inplace=True),
+				nn.ReLU6(inplace=False),
 
 				nn.Conv2d(int(inp), int(oup), 1, 1, 0, bias=False),
 				nn.BatchNorm2d(int(oup)),
-				nn.ReLU6(inplace=True),
+				nn.ReLU6(inplace=False),
 			)
 
 #NEW
@@ -145,7 +145,7 @@ class InvertedResidual(nn.Module):
 					# dw
 					nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
 					nn.BatchNorm2d(hidden_dim),
-					nn.ReLU6(inplace=True),
+					nn.ReLU6(inplace=False),
 					# pw-linear
 					nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
 					nn.BatchNorm2d(oup),
@@ -154,7 +154,7 @@ class InvertedResidual(nn.Module):
 				self.conv = nn.Sequential(
 					# dw
 					nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
-					nn.ReLU6(inplace=True),
+					nn.ReLU6(inplace=False),
 					# pw-linear
 					nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
 					
@@ -165,11 +165,11 @@ class InvertedResidual(nn.Module):
 					# pw
 					nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
 					nn.BatchNorm2d(hidden_dim),
-					nn.ReLU6(inplace=True),
+					nn.ReLU6(inplace=False),
 					# dw
 					nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
 					nn.BatchNorm2d(hidden_dim),
-					nn.ReLU6(inplace=True),
+					nn.ReLU6(inplace=False),
 					# pw-linear
 					nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
 					nn.BatchNorm2d(oup),
@@ -178,10 +178,10 @@ class InvertedResidual(nn.Module):
 				self.conv = nn.Sequential(
 					# pw
 					nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
-					nn.ReLU6(inplace=True),
+					nn.ReLU6(inplace=False),
 					# dw
 					nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
-					nn.ReLU6(inplace=True),
+					nn.ReLU6(inplace=False),
 					# pw-linear
 					nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
 				)
