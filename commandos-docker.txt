@@ -13,7 +13,7 @@ docker run -it -v /media/leen/Acer_500GB_HDD:/home/leen/Surveillance/mvod_app/mo
 #Zodat het GPU drivers vindt
 docker run -it --rm --gpus all -v /media/leen/Acer_500GB_HDD:/home/leen/Surveillance/mvod_app/mount_dataset cuda_test_leen bash
 
-geeft error: 
+geeft error: opgelost
 Traceback (most recent call last):
   File "evaluate_leen.py", line 202, in <module>
     boxes, labels, probs = predictor.predict(image)

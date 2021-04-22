@@ -33,7 +33,7 @@ LABEL_PATH_EPFL_DEFAULT ="./models/EPFL-labels.txt"
 
 
 parser = argparse.ArgumentParser(description="MVOD Evaluation on VID dataset")
-parser.add_argument('--net', default="mobv2-ssdl",
+parser.add_argument('--net', default="mobv2-ssdl-lstm4",
 					help="The network architecture, it should be of mobv1-ssdl, mobv2-ssdl, mobv1-ssdl-lstm3, mobv2-ssdl-lstm3")
 parser.add_argument("--trained_model", type=str, default = 'models/mb2-ssd-lite-mp-0_686.pth' )
 parser.add_argument("--dataset", type=str, default = DATASET_PATH_EPFL , help="The root directory of the VOC dataset or Open Images dataset.")
@@ -81,7 +81,11 @@ if __name__=='__main__':
 
 	"""Netwerk selectie"""
 	model = select_model(args)
-	#print(model)
+	print(model.base_net)
+	for e in model.extras:
+		if isinstance(e, net.BottleneckLSTM):
+			print(type(e))
+
 	print(args.net)
 
 	#for param in model.base_net.parameters():
@@ -94,13 +98,13 @@ if __name__=='__main__':
 	dict_base = {}
 	for k,v in pretrained_net_dict.items():
 		if'base_net' in k:
-			print(k)
+			#print(k)
 			new_k = k.replace('base_net.','')
 			dict_base[new_k] = v
 			#keys.append(k)
 	
-	for k,v in dict_base.items():
-		print(k)
+	#for k,v in dict_base.items():
+		#print(k)
 			#keys.append(k)
 
 	

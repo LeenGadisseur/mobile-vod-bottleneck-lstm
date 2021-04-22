@@ -45,7 +45,7 @@ HIDDEN = False #indien gebruik lstm (hidden_channels)
 #Parser
 parser = argparse.ArgumentParser(
 	description='Mobile Video Object Detection (Bottleneck LSTM) Training With Pytorch')
-parser.add_argument('--net', default="mobv2-ssdl",
+parser.add_argument('--net', default="mobv2-ssdl-lstm4",
 					help="The network architecture, it should be of mobv1-ssdl, mobv2-ssdl, mobv1-ssdl-lstm4, mobv2-ssdl-lstm4")
 parser.add_argument('--datasets', default = DATASET_PATH_EPFL, help='Dataset directory path')
 parser.add_argument('--cache_path', default = DATASET_PATH_EPFL, help='Cache directory path')
@@ -113,6 +113,7 @@ args = parser.parse_args()
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() and args.use_cuda else "cpu")
 
 if args.use_cuda and torch.cuda.is_available():
+	torch.cuda.empty_cache()
 	torch.backends.cudnn.benchmark = True
 	logging.info("Use Cuda.")
 
@@ -242,6 +243,7 @@ def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epo
 			confidence, locations = model(image)
 			regression_loss, classification_loss = criterion(confidence, locations, label, box)  # TODO CHANGE BOXES
 			loss = regression_loss + classification_loss
+			torch.autograd.set_detect_anomaly(True)
 			loss.backward(retain_graph=True)
 			optimizer.step()
 
@@ -359,6 +361,7 @@ if __name__=='__main__':
 	#Weights
 	logging.info("Build network.")
 	model = select_model(args, num_classes)
+	print(model)
 		#Pretrained weights of resume
 
 	if args.resume is None:

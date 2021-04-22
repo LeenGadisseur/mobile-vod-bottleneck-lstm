@@ -46,7 +46,7 @@ def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=
 		nn.Conv2d(in_channels=int(in_channels), out_channels=int(in_channels), kernel_size=kernel_size,
 			   groups=int(in_channels), stride=stride, padding=padding),
 		nn.BatchNorm2d(in_channels),
-		nn.ReLU6(),
+		nn.ReLU6(inplace=False),
 		nn.Conv2d(in_channels=int(in_channels), out_channels=int(out_channels), kernel_size=1),
 	)
 
@@ -122,7 +122,7 @@ class BottleneckLSTMCell(nn.Module):
 		self.Wbf = nn.Conv2d(self.hidden_channels, self.hidden_channels, 1, 1, 0, bias=False)
 		self.Wbc = nn.Conv2d(self.hidden_channels, self.hidden_channels, 1, 1, 0, bias=False)
 		self.Wbo = nn.Conv2d(self.hidden_channels, self.hidden_channels, 1, 1, 0, bias=False)
-		self.relu = nn.ReLU6()
+		self.relu = nn.ReLU6(inplace=False)
 		# self.Wci = None
 		# self.Wcf = None
 		# self.Wco = None
@@ -227,31 +227,31 @@ def mobv1_ssdlite_create(num_classes, alpha=1., is_test=False):
 	extras = nn.ModuleList([
 		nn.Sequential(	
 			nn.Conv2d(in_channels=int(1024*alpha_ssd), out_channels=int(256*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=256*alpha_ssd, out_channels=512*alpha_ssd, kernel_size=3, stride=2, padding=1),
 		),
 		nn.Sequential(	
 			nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=int(128*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=128*alpha_ssd, out_channels=256*alpha_ssd, kernel_size=3, stride=2, padding=1),
 		),
 
 		nn.Sequential(	
 			nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=int(128*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=128*alpha_ssd, out_channels=256*alpha_ssd, kernel_size=3, stride=2, padding=1),
 		),
 		nn.Sequential(	
 			nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=int(128*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=128*alpha_ssd, out_channels=256*alpha_ssd, kernel_size=3, stride=2, padding=1),
 		)
 	])
 
 		
 	regression_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=1024*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=512*alpha_base, out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=1024*alpha_base, out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * 4, kernel_size=3, padding=1),
@@ -259,8 +259,8 @@ def mobv1_ssdlite_create(num_classes, alpha=1., is_test=False):
 	])
 
 	classification_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=1024*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=512*alpha_base, out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=1024*alpha_base, out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=512*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=256*alpha_ssd, out_channels=6 * num_classes, kernel_size=3, padding=1),
@@ -328,28 +328,28 @@ def mobv1_ssdlite_lstm4_create(num_classes, alpha=1., batch_size=None, is_test=F
 		BottleneckLSTM(input_channels=int(1024*alpha_lstm), hidden_channels=int(256*alpha_lstm), height=10, width=10, batch_size=batch_size),
 		nn.Sequential(	
 			nn.Conv2d(in_channels=int(256*alpha_ssd), out_channels=int(128*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(128*alpha_ssd), out_channels=int(256*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		),
 
-		BottleneckLSTM(input_channels=int(256*alpha_lstm), hidden_channels=int(64*alpha_lstm), height=10, width=10, batch_size=batch_size),
+		BottleneckLSTM(input_channels=int(256*alpha_lstm), hidden_channels=int(64*alpha_lstm), height=5, width=5, batch_size=batch_size),
 		nn.Sequential(	
 			nn.Conv2d(in_channels=int(64*alpha_ssd), out_channels=int(32*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(32*alpha_ssd), out_channels=int(64*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		),
 
-		BottleneckLSTM(input_channels=64*alpha_lstm, hidden_channels=16*alpha_lstm, height=10, width=10, batch_size=batch_size),
+		BottleneckLSTM(input_channels=64*alpha_lstm, hidden_channels=16*alpha_lstm, height=3, width=3, batch_size=batch_size),
 		nn.Sequential(	
 			nn.Conv2d(in_channels=int(16*alpha_ssd), out_channels=int(8*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(8*alpha_ssd), out_channels=int(16*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		),
 
-		BottleneckLSTM(input_channels=int(16*alpha_lstm), hidden_channels=int(16*alpha_lstm), height=10, width=10, batch_size=batch_size),
+		BottleneckLSTM(input_channels=int(16*alpha_lstm), hidden_channels=int(16*alpha_lstm), height=1, width=1, batch_size=batch_size),
 		nn.Sequential(	
 			nn.Conv2d(in_channels=int(16*alpha_ssd), out_channels=int(8*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(8*alpha_ssd), out_channels=int(16*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		)
 	])
@@ -403,20 +403,21 @@ def mobv2_ssdlite_IR_lstm4_create(num_classes, alpha=1.0, use_batch_norm=True, b
 		InvertedResidual(int(20*alpha_ssd), int(20*alpha_ssd), stride=2, expand_ratio=0.25, use_batch_norm=use_batch_norm)
 	])	
 
+	#twee eerste komen uit Mobilenetv2
 	regression_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=int(512*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(576*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(1280*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(320*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(80*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=int(20*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(20*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
 		nn.Conv2d(in_channels=int(20*alpha_ssd), out_channels=6 * 4, kernel_size=1)
 	])
 
 	classification_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=int(512*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(576*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(1280*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(320*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(80*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=int(20*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(20*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		nn.Conv2d(in_channels=int(20*alpha_ssd), out_channels=6 * num_classes, kernel_size=1)
 	])
@@ -436,51 +437,53 @@ def mobv2_ssdlite_lstm4_create(num_classes, alpha=1.0, use_batch_norm=True, batc
 	
 
 	source_layer_indexes = [GraphPath(14, 'conv', 3), 19,]
-	
+	#input_channels krijgen multiplier van vorige soort laag !
 	extras = nn.ModuleList([
-		BottleneckLSTM(input_channels=int(1280*alpha_lstm), hidden_channels=int(320*alpha_lstm), height=10, width=10, batch_size=batch_size),
-		nn.Sequential(	
-			nn.Conv2d(in_channels=int(320*alpha_ssd), out_channels=int(160*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+		#verhouding input en output van bottleneck lstm is 1/4 vanwege 4 gates
+		BottleneckLSTM(input_channels=int(1280*alpha_base), hidden_channels=int(320*alpha_lstm), height=10, width=10, batch_size=batch_size),
+		nn.Sequential(
+			nn.Conv2d(in_channels=int(320*alpha_lstm), out_channels=int(160*alpha_ssd), kernel_size=1),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(160*alpha_ssd), out_channels=int(320*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		),
 
-		BottleneckLSTM(input_channels=int(320*alpha_lstm), hidden_channels=int(80*alpha_lstm), height=10, width=10, batch_size=batch_size),
-		nn.Sequential(	
-			nn.Conv2d(in_channels=int(80*alpha_ssd), out_channels=int(40*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+		BottleneckLSTM(input_channels=int(320*alpha_ssd), hidden_channels=int(80*alpha_lstm), height=5, width=5, batch_size=batch_size),
+		nn.Sequential(
+			nn.Conv2d(in_channels=int(80*alpha_lstm), out_channels=int(40*alpha_ssd), kernel_size=1),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(40*alpha_ssd), out_channels=int(80*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		),
 
-		BottleneckLSTM(input_channels=80*alpha_lstm, hidden_channels=20*alpha_lstm, height=10, width=10, batch_size=batch_size),
-		nn.Sequential(	
-			nn.Conv2d(in_channels=int(20*alpha_ssd), out_channels=int(10*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+		BottleneckLSTM(input_channels=int(80*alpha_ssd), hidden_channels=int(20*alpha_lstm), height=3, width=3, batch_size=batch_size),
+		nn.Sequential(
+			nn.Conv2d(in_channels=int(20*alpha_lstm), out_channels=int(10*alpha_ssd), kernel_size=1),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(10*alpha_ssd), out_channels=int(20*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		),
 
-		BottleneckLSTM(input_channels=int(20*alpha_lstm), hidden_channels=int(20*alpha_lstm), height=10, width=10, batch_size=batch_size),
-		nn.Sequential(	
+		#BottleneckLSTM(input_channels=int(20*alpha_ssd), hidden_channels=int(20*alpha_lstm), height=1, width=1, batch_size=batch_size),
+		nn.Sequential(
 			nn.Conv2d(in_channels=int(20*alpha_ssd), out_channels=int(10*alpha_ssd), kernel_size=1),
-			nn.ReLU6(inplace=True),
+			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(10*alpha_ssd), out_channels=int(20*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		)
 	])	
 
+	#Eerste headers komen van base_net dus alpha_base gebruiken
 	regression_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=int(512*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(576*alpha_base), out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(1280*alpha_base), out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(320*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(80*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=int(20*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(20*alpha_ssd), out_channels=6 * 4, kernel_size=3, padding=1),
 		nn.Conv2d(in_channels=int(20*alpha_ssd), out_channels=6 * 4, kernel_size=1)
 	])
 
 	classification_headers = nn.ModuleList([
-		SeperableConv2d(in_channels=int(512*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(576*alpha_base), out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(1280*alpha_base), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(320*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(80*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
-		SeperableConv2d(in_channels=int(20*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(20*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		nn.Conv2d(in_channels=int(20*alpha_ssd), out_channels=6 * num_classes, kernel_size=1)
 	])
@@ -558,6 +561,7 @@ class SSD(nn.Module):
 		Returns:
 			locations and confidences of the predictions
 		"""
+		print("Confidence index: ", i)
 		confidence = self.classification_headers[i](x)
 		confidence = confidence.permute(0, 2, 3, 1).contiguous()
 		confidence = confidence.view(confidence.size(0), -1, self.num_classes)
@@ -567,6 +571,17 @@ class SSD(nn.Module):
 		location = location.view(location.size(0), -1, 4)
 
 		return confidence, location
+	
+	def detach_hidden(self):
+		"""
+		Detaches hidden state and cell state of all the LSTM layers from the graph
+		"""
+
+		for e in self.extras:
+			if isinstance(e, network.SSD.BottleneckLSTM):
+				print("Detached.")
+				e.hidden_state.detach_()
+				e.cell_state.detach_()
 
 	def forward(self, x):
 		"""
@@ -624,10 +639,13 @@ class SSD(nn.Module):
 			end_layer_index += 1
 			start_layer_index = end_layer_index
 			#Berekenen header en inc header index
+			#print("Layer computed header: Basenet", layer)
 			confidence, location = self.compute_header(header_index, y)
+			print("Layer computed header: Basenet", layer)
 			header_index += 1
 			confidences.append(confidence)
 			locations.append(location)
+			
 		
 		
 		# Doorlopen lagen van basenet, die niet bij in SSD zitten voor predicties (headers) 
@@ -640,10 +658,14 @@ class SSD(nn.Module):
 			x = layer(x)
 			#print("Extra laag")
 			#print(layer)
-			confidence, location = self.compute_header(header_index, x)
-			header_index += 1
-			confidences.append(confidence)
-			locations.append(location)
+			if isinstance(layer, BottleneckLSTM ):
+				continue
+			else:
+				confidence, location = self.compute_header(header_index, x)
+				header_index += 1
+				confidences.append(confidence)
+				locations.append(location)
+				print("Layer computed header: Extras", layer)
 
 		confidences = torch.cat(confidences, 1)
 		locations = torch.cat(locations, 1)		
