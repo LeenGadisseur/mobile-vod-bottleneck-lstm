@@ -115,8 +115,11 @@ class VIDDataset:
 		for image_id in image_ids:
 			if self.is_val:
 				annotation_file = self.data / f"Annotations/VID/val/{image_id}.xml"
+				print("Anno file: ", annotation_file)
 			else:
 				annotation_file = self.data / f"Annotations/VID/train/{image_id}.xml"
+				print("Anno file: ", annotation_file)
+
 			objects = ET.parse(annotation_file).findall("object")
 			boxes = []
 			labels = []

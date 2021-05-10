@@ -40,6 +40,8 @@ DATASET_PATH_VID_MOUNTED ="./mount_dataset/Imagenet_VID_dataset/ILSVRC/"
 DATASET_PATH_EPFL = "/media/leen/Acer_500GB_HDD/EPFL/"
 DATASET_PATH_EPFL_MOUNTED ="./mount_dataset/EPFL/"
 LABEL_PATH_VID_DEFAULT ="./models/vid-model-labels.txt"
+LABEL_PATH_VOC_DEFAULT ="./models/voc-2007-labels.txt"
+LABEL_PATH_EPFL_DEFAULT ="./models/EPFL-labels.txt"
 HIDDEN = False #indien gebruik lstm (hidden_channels)
 
 #Parser
@@ -70,7 +72,7 @@ parser.add_argument('--ssd_lr', default=None, type=float,
 
 
 # Params for loading pretrained basenet or checkpoints.
-parser.add_argument('--pretrained', default= None , help='Pre-trained model')
+parser.add_argument('--pretrained' , help='Pre-trained model')
 parser.add_argument('--pretrained_base_net',default= 'models/mb2-ssd-lite-mp-0_686.pth' , help='Pre-trained model, from which only the base_net weights are extracted.')
 parser.add_argument('--resume', default= None , type=str,
 					help='Checkpoint state_dict file to resume training from')
@@ -92,7 +94,7 @@ parser.add_argument('--batch_size', default=2, type=int,
 					help='Batch size for training')# batch_size moet groter dan 1 zijn! anders Value error (heeft te maken met mean nemen), normaal gezien 10, maar dat kan de GPU niet aan (cuda runs out of memory)
 parser.add_argument('--num_epochs', default=200, type=int,
 					help='the number epochs')
-parser.add_argument('--num_workers', default=4, type=int,
+parser.add_argument('--num_workers', default=1, type=int,
 					help='Number of workers used in dataloading')#  4 lijkt alsof het niet sequentieel gebeurt bij het uitprinten, 1 lijkt wel sequentieel
 parser.add_argument('--validation_epochs', default=5, type=int,
 					help='the number epochs')
@@ -157,10 +159,11 @@ def load_EPFL_dataset(args):
 
 	"""
 	train_transform = TrainAugmentation(config.image_size, config.image_mean, config.image_std)
+	val_transform = TestTransform(config.image_size, config.image_mean, config.image_std)#gebruiken voor validatie dataset
 	target_transform = net.MatchPrior(config.priors, config.center_variance, config.size_variance, 0.5)
 
 	train_dataset = EPFLDataset(args.datasets, args.cache_path, transform=train_transform, target_transform=target_transform, batch_size=args.batch_size)
-	val_dataset = EPFLDataset(args.datasets, args.cache_path, transform=train_transform, target_transform=target_transform, batch_size=args.batch_size, is_val=True)
+	val_dataset = EPFLDataset(args.datasets, args.cache_path, transform=val_transform, target_transform=target_transform, batch_size=args.batch_size, is_val=True)
 
 	return train_dataset, val_dataset
 
@@ -226,31 +229,36 @@ def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epo
 		sequence_length : unroll length of model
 		epoch : current epoch number
 	"""
+	print("Training...")
 	model.train(True)
 	running_loss = 0.0
 	running_regression_loss = 0.0
 	running_classification_loss = 0.0
 	for i, data in enumerate(loader):
-		#print("Training i: ", i)
+		print("Training i: ", i)
 		images, boxes, labels = data
+		print("Boxes shape: ", len(boxes))
+		print("Labels shape: ", len(labels))
 		for image, box, label in zip(images, boxes, labels):
-			#print("Lus")
+			print("Trainin Lus")
 			image = image.to(device)
 			box = box.to(device)
 			label = label.to(device)
 
 			optimizer.zero_grad()
+			torch.autograd.set_detect_anomaly(True)
 			confidence, locations = model(image)
+			print("Confidence and locations: ",confidence.shape, locations.shape)
 			regression_loss, classification_loss = criterion(confidence, locations, label, box)  # TODO CHANGE BOXES
 			loss = regression_loss + classification_loss
-			torch.autograd.set_detect_anomaly(True)
 			loss.backward(retain_graph=True)
+			print("Passed backward.")
 			optimizer.step()
 
 			running_loss += loss.item()
 			running_regression_loss += regression_loss.item()
 			running_classification_loss += classification_loss.item()
-		if HIDDEN : 
+		if HIDDEN :
 			model.detach_hidden()
 		if i and i % debug_steps == 0:
 			avg_loss = running_loss / (debug_steps*sequence_length)
@@ -265,7 +273,7 @@ def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epo
 			running_loss = 0.0
 			running_regression_loss = 0.0
 			running_classification_loss = 0.0
-	if HIDDEN : 
+	if HIDDEN :
 		model.detach_hidden()
 
 
@@ -334,6 +342,7 @@ def initialize_model(model):
 
 #Main
 if __name__=='__main__':
+	torch.cuda.empty_cache()
 	timer = Timer()
 
 	logging.info(args)
@@ -348,6 +357,7 @@ if __name__=='__main__':
 	train_dataset, val_dataset = load_EPFL_dataset(args)
 
 	label_file = os.path.join("models/", "EPFL-labels.txt")
+	#label_file = LABEL_PATH_VOC_DEFAULT
 	store_labels(label_file, train_dataset._classes_names)
 	num_classes = len(train_dataset._classes_names)
 
@@ -423,6 +433,7 @@ if __name__=='__main__':
 	# 	logging.fatal(f"Unsupported Scheduler: {args.scheduler}.")
 	# 	parser.print_help(sys.stderr)
 	# 	sys.exit(1)
+
 	output_path = os.path.join(args.checkpoint_folder, f"mb2-ssdl")
 	if not os.path.exists(output_path):
 		os.makedirs(os.path.join(output_path))

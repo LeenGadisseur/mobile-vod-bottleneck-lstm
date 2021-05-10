@@ -19,6 +19,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
+import traceback
 
 import math
 import numpy as np
@@ -122,10 +123,10 @@ class BottleneckLSTMCell(nn.Module):
 		self.Wbf = nn.Conv2d(self.hidden_channels, self.hidden_channels, 1, 1, 0, bias=False)
 		self.Wbc = nn.Conv2d(self.hidden_channels, self.hidden_channels, 1, 1, 0, bias=False)
 		self.Wbo = nn.Conv2d(self.hidden_channels, self.hidden_channels, 1, 1, 0, bias=False)
-		self.relu = nn.ReLU6(inplace=False)
-		# self.Wci = None
-		# self.Wcf = None
-		# self.Wco = None
+		self.relu = nn.ReLU6()
+		self.Wci = None
+		self.Wcf = None
+		self.Wco = None
 		logging.info("Initializing weights of lstm")
 		self._initialize_weights()
 
@@ -152,15 +153,17 @@ class BottleneckLSTMCell(nn.Module):
 		Returns:
 			output tensor after LSTM cell 
 		"""
+		print("BottleneckCell")
 		x = self.W(x)
-		y = torch.cat((x, h),1) #concatenate input and hidden layers
-		i = self.Wy(y) #reduce to hidden layer size
-		b = self.Wi(i)	#depth wise 3*3
-		ci = torch.sigmoid(self.Wbi(b))
-		cf = torch.sigmoid(self.Wbf(b))
+		y = torch.cat((x, h), 1)  # concatenate input and hidden layers
+		i = self.Wy(y)  # reduce to hidden layer size
+		b = self.Wi(i)  # depth wise 3*3
+		ci = torch.sigmoid(self.Wbi(b) + c * self.Wci)
+		cf = torch.sigmoid(self.Wbf(b) + c * self.Wcf)
 		cc = cf * c + ci * self.relu(self.Wbc(b))
-		co = torch.sigmoid(self.Wbo(b))
+		co = torch.sigmoid(self.Wbo(b) + cc * self.Wco)
 		ch = co * self.relu(cc)
+		#print("BottleneckCell", ch, cc)
 		return ch, cc
 
 	def init_hidden(self, batch_size, hidden, shape):
@@ -172,13 +175,13 @@ class BottleneckLSTMCell(nn.Module):
 		Returns:
 			cell state and hidden state
 		"""
-		# if self.Wci is None:
-		# 	self.Wci = Variable(torch.zeros(1, hidden, shape[0], shape[1])).cuda()
-		# 	self.Wcf = Variable(torch.zeros(1, hidden, shape[0], shape[1])).cuda()
-		# 	self.Wco = Variable(torch.zeros(1, hidden, shape[0], shape[1])).cuda()
-		# else:
-		# 	assert shape[0] == self.Wci.size()[2], 'Input Height Mismatched!'
-		# 	assert shape[1] == self.Wci.size()[3], 'Input Width Mismatched!'
+		if self.Wci is None:
+			self.Wci = Variable(torch.zeros(1, hidden, shape[0], shape[1])).cuda()
+			self.Wcf = Variable(torch.zeros(1, hidden, shape[0], shape[1])).cuda()
+			self.Wco = Variable(torch.zeros(1, hidden, shape[0], shape[1])).cuda()
+		else:
+			assert shape[0] == self.Wci.size()[2], 'Input Height Mismatched!'
+			assert shape[1] == self.Wci.size()[3], 'Input Width Mismatched!'
 		return (Variable(torch.zeros(batch_size, hidden, shape[0], shape[1])).cuda(),
 				Variable(torch.zeros(batch_size, hidden, shape[0], shape[1])).cuda()
 				)
@@ -205,6 +208,7 @@ class BottleneckLSTM(nn.Module):
 		self.cell_state = c
 
 	def forward(self, input):
+		print("Bottleneck - forward" )
 		new_h, new_c = self.cell(input, self.hidden_state, self.cell_state)
 		self.hidden_state = new_h
 		self.cell_state = new_c
@@ -429,6 +433,7 @@ def mobv2_ssdlite_IR_lstm4_create(num_classes, alpha=1.0, use_batch_norm=True, b
 
 def mobv2_ssdlite_lstm4_create(num_classes, alpha=1.0, use_batch_norm=True, batch_size=None ,is_test=False):
 
+	#onderstaande verhoudingen staan rechtstreeks in de cijfers, je kan gewoon alpha gebruiken
 	alpha_base = alpha	
 	alpha_ssd = 0.5*alpha
 	alpha_lstm = 0.25*alpha	
@@ -438,38 +443,100 @@ def mobv2_ssdlite_lstm4_create(num_classes, alpha=1.0, use_batch_norm=True, batc
 
 	source_layer_indexes = [GraphPath(14, 'conv', 3), 19,]
 	#input_channels krijgen multiplier van vorige soort laag !
+
+	extras = nn.ModuleList([
+		# verhouding input en output van bottleneck lstm is 1/4 vanwege 4 gates
+		# Bottleneck na laatste laag in base_net
+		BottleneckLSTM(input_channels=int(1280 * alpha), hidden_channels=int(320 * alpha), height=10,
+					   width=10, batch_size=batch_size),
+
+		nn.Sequential(
+			nn.Conv2d(in_channels=int(320 * alpha), out_channels=int(160 * alpha), kernel_size=1),
+			nn.ReLU6(inplace=False),
+			SeperableConv2d(in_channels=int(160 * alpha), out_channels=int(320 * alpha), kernel_size=3,
+							stride=2, padding=1),
+		),
+		BottleneckLSTM(input_channels=int(320 * alpha), hidden_channels=int(80 * alpha), height=5, width=5,
+					   batch_size=batch_size),
+
+		nn.Sequential(
+			nn.Conv2d(in_channels=int(80 * alpha), out_channels=int(40 * alpha), kernel_size=1),
+			nn.ReLU6(inplace=False),
+			SeperableConv2d(in_channels=int(40 * alpha), out_channels=int(80 * alpha), kernel_size=3, stride=2,
+							padding=1),
+		),
+		BottleneckLSTM(input_channels=int(80 * alpha), hidden_channels=int(20 * alpha), height=3, width=3,
+					   batch_size=batch_size),
+
+		nn.Sequential(
+			nn.Conv2d(in_channels=int(20 * alpha), out_channels=int(10 * alpha), kernel_size=1),
+			nn.ReLU6(inplace=False),
+			SeperableConv2d(in_channels=int(10 * alpha), out_channels=int(20 * alpha), kernel_size=3, stride=2,
+							padding=1),
+		),
+		BottleneckLSTM(input_channels=int(20*alpha), hidden_channels=int(20*alpha), height=2, width=2, batch_size=batch_size),
+
+		#nn.Sequential(
+		#	nn.Conv2d(in_channels=int(20 * alpha), out_channels=int(10 * alpha), kernel_size=1),
+		#	nn.ReLU6(inplace=False),
+		#	SeperableConv2d(in_channels=int(10 * alpha), out_channels=int(20 * alpha), kernel_size=3, stride=2,
+		#					padding=1),
+		#),
+		#BottleneckLSTM(input_channels=int(20 * alpha), hidden_channels=int(20 * alpha), height=1, width=1, batch_size=batch_size),
+	])
+	#
+	regression_headers = nn.ModuleList([
+		SeperableConv2d(in_channels=int(576*alpha), out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(1280*alpha), out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(320*alpha), out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(80*alpha), out_channels=6 * 4, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(20*alpha), out_channels=6 * 4, kernel_size=3, padding=1),
+		nn.Conv2d(in_channels=int(20*alpha), out_channels=6 * 4, kernel_size=1)
+	])
+
+	classification_headers = nn.ModuleList([
+		SeperableConv2d(in_channels=int(576*alpha), out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(1280*alpha), out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(320*alpha), out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(80*alpha), out_channels=6 * num_classes, kernel_size=3, padding=1),
+		SeperableConv2d(in_channels=int(20*alpha), out_channels=6 * num_classes, kernel_size=3, padding=1),
+		nn.Conv2d(in_channels=int(20*alpha), out_channels=6 * num_classes, kernel_size=1)
+	])
+
+
+	"""
 	extras = nn.ModuleList([
 		#verhouding input en output van bottleneck lstm is 1/4 vanwege 4 gates
 		BottleneckLSTM(input_channels=int(1280*alpha_base), hidden_channels=int(320*alpha_lstm), height=10, width=10, batch_size=batch_size),
+		
 		nn.Sequential(
 			nn.Conv2d(in_channels=int(320*alpha_lstm), out_channels=int(160*alpha_ssd), kernel_size=1),
 			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(160*alpha_ssd), out_channels=int(320*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		),
-
 		BottleneckLSTM(input_channels=int(320*alpha_ssd), hidden_channels=int(80*alpha_lstm), height=5, width=5, batch_size=batch_size),
+		
 		nn.Sequential(
 			nn.Conv2d(in_channels=int(80*alpha_lstm), out_channels=int(40*alpha_ssd), kernel_size=1),
 			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(40*alpha_ssd), out_channels=int(80*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		),
-
 		BottleneckLSTM(input_channels=int(80*alpha_ssd), hidden_channels=int(20*alpha_lstm), height=3, width=3, batch_size=batch_size),
+		
 		nn.Sequential(
 			nn.Conv2d(in_channels=int(20*alpha_lstm), out_channels=int(10*alpha_ssd), kernel_size=1),
 			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(10*alpha_ssd), out_channels=int(20*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		),
-
-		#BottleneckLSTM(input_channels=int(20*alpha_ssd), hidden_channels=int(20*alpha_lstm), height=1, width=1, batch_size=batch_size),
+		BottleneckLSTM(input_channels=int(20*alpha_ssd), hidden_channels=int(20*alpha_lstm), height=2, width=2, batch_size=batch_size),
+		
 		nn.Sequential(
 			nn.Conv2d(in_channels=int(20*alpha_ssd), out_channels=int(10*alpha_ssd), kernel_size=1),
 			nn.ReLU6(inplace=False),
 			SeperableConv2d(in_channels=int(10*alpha_ssd), out_channels=int(20*alpha_ssd), kernel_size=3, stride=2, padding=1),
 		)
-	])	
-
-	#Eerste headers komen van base_net dus alpha_base gebruiken
+	])
+	
 	regression_headers = nn.ModuleList([
 		SeperableConv2d(in_channels=int(576*alpha_base), out_channels=6 * 4, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(1280*alpha_base), out_channels=6 * 4, kernel_size=3, padding=1),
@@ -486,7 +553,8 @@ def mobv2_ssdlite_lstm4_create(num_classes, alpha=1.0, use_batch_norm=True, batc
 		SeperableConv2d(in_channels=int(80*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		SeperableConv2d(in_channels=int(20*alpha_ssd), out_channels=6 * num_classes, kernel_size=3, padding=1),
 		nn.Conv2d(in_channels=int(20*alpha_ssd), out_channels=6 * num_classes, kernel_size=1)
-	])
+	])"""
+
 
 
 	ssd = SSD(num_classes=num_classes, base_net=base_net, source_layer_indexes=source_layer_indexes, extras=extras, classification_headers=classification_headers, regression_headers=regression_headers, is_test=is_test, config=config)
@@ -578,12 +646,13 @@ class SSD(nn.Module):
 		"""
 
 		for e in self.extras:
-			if isinstance(e, network.SSD.BottleneckLSTM):
+			if isinstance(e, BottleneckLSTM):
 				print("Detached.")
 				e.hidden_state.detach_()
 				e.cell_state.detach_()
 
 	def forward(self, x):
+
 		"""
 		Arguments:
 			x : a tensor which is used as input for the model
@@ -592,6 +661,7 @@ class SSD(nn.Module):
 			or
 			confidences and boxes of predictions made by model during testing
 		"""
+
 		confidences = []
 		locations = []
 		header_index = 0
@@ -611,9 +681,13 @@ class SSD(nn.Module):
 				added_layer = None
 				path = None
 			#Doorloop basenet van start tot end layer
+			i=0
 			for layer in self.base_net[start_layer_index: end_layer_index]:
 				x = layer(x)
+				i = i + 1
+				print("Baselaag :", i)
 				#print("Base_net layer")
+				#print(x)
 				#print(layer)
 
 			if added_layer:
@@ -627,48 +701,69 @@ class SSD(nn.Module):
 			if path:
 				sub = getattr(self.base_net[end_layer_index], path.name)
 				for layer in sub[:path.s1]:
-					#print("Path - layer")
+					print("Path - layer")
 					x = layer(x)
+					#print(x)
 					#print(layer)
 				y = x
 				for layer in sub[path.s1:]:
 					x = layer(x)
 					#print(layer)
+					#print(x)
 			#End_layer_index verhogen, start_layer_index vervangen
 			#print("headers inc")
 			end_layer_index += 1
 			start_layer_index = end_layer_index
 			#Berekenen header en inc header index
-			#print("Layer computed header: Basenet", layer)
 			confidence, location = self.compute_header(header_index, y)
-			print("Layer computed header: Basenet", layer)
+			#print("Layer computed header: Basenet", layer)
 			header_index += 1
 			confidences.append(confidence)
 			locations.append(location)
-			
-		
+
 		
 		# Doorlopen lagen van basenet, die niet bij in SSD zitten voor predicties (headers) 
 		for layer in self.base_net[end_layer_index:]: 
 			x = layer(x)
-			#print("Laatste basenet laag")
+			print("Laatste basenet laag")
+			#print(x)
 			#print(layer)
 
-		for layer in self.extras:
-			x = layer(x)
-			#print("Extra laag")
-			#print(layer)
-			if isinstance(layer, BottleneckLSTM ):
-				continue
-			else:
+		#Bij het gebruik van bottlenecks
+		if any(isinstance(layer, BottleneckLSTM) for layer in self.extras):
+			print("Ja bottlenecks worden gebruikt.")
+
+			for layer in self.extras:
+				x = layer(x)
+				#print(x)
+				#print(layer)
+				if isinstance(layer, BottleneckLSTM ):
+					print("Extra laag met bottleneck")
+					#berekenen headers na bottleneck
+					confidence, location = self.compute_header(header_index, x)
+					header_index += 1
+					confidences.append(confidence)
+					locations.append(location)
+				else:
+					print("Extra laag zonder bottleneck")
+					continue
+
+			confidences = torch.cat(confidences, 1)
+			locations = torch.cat(locations, 1)
+
+		#Mobilenetv2  zonder bottlenecks
+		else:
+			for layer in self.extras:
+				x = layer(x)
+				print("Bottlenecks worden niet gebruikt.")
 				confidence, location = self.compute_header(header_index, x)
 				header_index += 1
 				confidences.append(confidence)
 				locations.append(location)
-				print("Layer computed header: Extras", layer)
+				#print("Layer computed header: Extras", layer)
 
-		confidences = torch.cat(confidences, 1)
-		locations = torch.cat(locations, 1)		
+			confidences = torch.cat(confidences, 1)
+			locations = torch.cat(locations, 1)
 
 		if self.is_test:
 			confidences = F.softmax(confidences, dim=2)
@@ -679,4 +774,6 @@ class SSD(nn.Module):
 			return confidences, boxes
 		else:
 			return confidences, locations
+
+
 

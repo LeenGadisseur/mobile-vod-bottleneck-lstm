@@ -20,7 +20,7 @@ import os
 
 class EPFLDataset:
 
-	def __init__(self, data, root, transform=None, target_transform=None, is_val=False, batch_size=None, label_file=None):
+	def __init__(self, data, root, transform=None, target_transform=None, is_val=False, is_test=False, batch_size=None, label_file=None):
 		"""Dataset for EPFL data.
 		Args:
 			root: the root of the EPFL dataset, the directory contains the following sub-directories:
@@ -30,10 +30,12 @@ class EPFLDataset:
 		self.root = pathlib.Path(root)
 		self.transform = transform
 		self.target_transform = target_transform
-		#self.is_test = is_test
+		self.is_test = is_test
 		self.is_val = is_val
 		if self.is_val:
 			image_sets_file = "datasets/val_EPFL_seqs_list.txt"
+		elif self.is_test:
+			image_sets_file = "datasets/test_EPFL_seqs_list_correct.txt" 
 		else:
 			image_sets_file = "datasets/train_EPFL_seqs_list.txt"
 
@@ -89,15 +91,22 @@ class EPFLDataset:
 			cache_file = os.path.join(self.root, 'val_EPFL_seq_gt_db.pkl')
 			print("Cache file: ", cache_file)
 			print("Cached.")
+
+		elif self.is_test:
+			cache_file = os.path.join(self.root, 'test_EPFL_seq_gt_db.pkl')
+			print("Cache file: ", cache_file)
+			print("Cached.")
 		else:
 			cache_file = os.path.join(self.root, 'train_EPFL_seq_gt_db.pkl')
 			print("Cache file: ", cache_file)
 			print("Cached.")
-		"""if os.path.exists(cache_file):
+
+		if os.path.exists(cache_file):
+			print("Loading from cache...")
 			with open(cache_file, 'rb') as fid:
 				roidb = pickle.load(fid)
 			logging.info('gt roidb loaded from {}'.format(cache_file))
-			return roidb"""
+			return roidb
 
 		#print(self.seq_list)
 		print("Loading annos...")
@@ -124,6 +133,9 @@ class EPFLDataset:
 		for image_id in image_ids:
 			if self.is_val:
 				annotation_file = self.data / f"Annotations/val/{image_id}.xml"
+				#print("anno file: ",annotation_file )
+			elif self.is_test:
+				annotation_file = self.data / f"Annotations/test/{image_id}.xml"
 				#print("anno file: ",annotation_file )
 			else:
 				annotation_file = self.data / f"Annotations/train/{image_id}.xml"
@@ -174,6 +186,8 @@ class EPFLDataset:
 		"""
 		if self.is_val:
 			image_file = self.data / f"Data/val/{image_id}.JPEG"
+		elif self.is_test:
+			image_file = self.data / f"Data/test/{image_id}.JPEG"
 		else:
 			image_file = self.data / f"Data/train/{image_id}.JPEG"
 		return image_file

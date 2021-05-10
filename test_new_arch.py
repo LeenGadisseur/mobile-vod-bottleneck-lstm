@@ -33,7 +33,7 @@ LABEL_PATH_EPFL_DEFAULT ="./models/EPFL-labels.txt"
 
 
 parser = argparse.ArgumentParser(description="MVOD Evaluation on VID dataset")
-parser.add_argument('--net', default="mobv2-ssdl-lstm4",
+parser.add_argument('--net', default="mobv2-ssdl",
 					help="The network architecture, it should be of mobv1-ssdl, mobv2-ssdl, mobv1-ssdl-lstm3, mobv2-ssdl-lstm3")
 parser.add_argument("--trained_model", type=str, default = 'models/mb2-ssd-lite-mp-0_686.pth' )
 parser.add_argument("--dataset", type=str, default = DATASET_PATH_EPFL , help="The root directory of the VOC dataset or Open Images dataset.")
@@ -45,7 +45,8 @@ parser.add_argument("--nms_method", type=str, default="hard")
 parser.add_argument('--width_mult', default=1, type=float,
 					help='Width Multiplifier for network')
 args = parser.parse_args()
-device = torch.device("cuda:0" if torch.cuda.is_available() and args.use_cuda else "cpu")
+#device = torch.device("cuda:0" if torch.cuda.is_available() and args.use_cuda else "cpu")
+device = torch.device('cpu')
 print("Device:", device)
 print("Argumenten verwerkt.")
 
@@ -81,19 +82,22 @@ if __name__=='__main__':
 
 	"""Netwerk selectie"""
 	model = select_model(args)
-	print(model.base_net)
-	for e in model.extras:
-		if isinstance(e, net.BottleneckLSTM):
-			print(type(e))
+
+	#Base_net gewichten uit halen
+	#print(model.base_net)
+	#for e in model.extras:
+	#	if isinstance(e, net.BottleneckLSTM):
+	#		print(type(e))
 
 	print(args.net)
+	print(model)
 
 	#for param in model.base_net.parameters():
 	#		print("Param: ", param)
 
 	"""Gewichten inladen"""
 	pretrained_net_dict = torch.load(args.trained_model,map_location=lambda storage, loc: storage)
-	#keys = []
+
 	#DICTIONARY ENKEL VOOR MOBILENETV2
 	dict_base = {}
 	for k,v in pretrained_net_dict.items():
@@ -101,7 +105,7 @@ if __name__=='__main__':
 			#print(k)
 			new_k = k.replace('base_net.','')
 			dict_base[new_k] = v
-			#keys.append(k)
+	#model.base_net.load_state_dict(pretrained_net_dict)
 	
 	#for k,v in dict_base.items():
 		#print(k)
@@ -113,8 +117,8 @@ if __name__=='__main__':
 	#		print(type(pretrained_net_dict))
 	#for name in model.base_net.named_parameters():
 		#print("param name:", name)
-	#model.load_state_dict(torch.load(args.trained_model, map_location=lambda storage, loc: storage))
-	model.base_net.load_state_dict(dict_base)
+	model.load_state_dict(torch.load(args.trained_model, map_location=lambda storage, loc: storage))
+	
 
 	"""Transforms"""
 	#train_transform = TrainAugmentation(config.image_size, config.image_mean, config.image_std)
@@ -123,11 +127,13 @@ if __name__=='__main__':
 
 	"""Dataset"""
 	train_dataset = EPFLDataset(DATASET_PATH_EPFL, DATASET_PATH_EPFL, batch_size = 2, is_val=False, label_file = LABEL_PATH_EPFL_DEFAULT)
+	test_dataset = EPFLDataset(DATASET_PATH_EPFL, DATASET_PATH_EPFL, batch_size = 2, is_val=False, is_test=True, label_file = LABEL_PATH_EPFL_DEFAULT)
 	#val_dataset = EPFLDataset(DATASET_PATH_EPFL, DATASET_PATH_EPFL, batch_size = 2, is_val=True, label_file = LABEL_PATH_EPFL_DEFAULT)
 	#print(val_dataset)
 
-	dataset = train_dataset
+	dataset = test_dataset
 	num_classes = len(dataset._classes_names)
+	print("Classes in dataset: ",dataset._classes_names)
 	print("Number of classes: ",num_classes)
 	print("Dataset lengte:", len(dataset))
 	
@@ -141,9 +147,39 @@ if __name__=='__main__':
                           device=device)
 
 	#boxes, labels, probs = predictor.predict(img)
-	exit(0)
+	#exit(0)
 
 	"""Testing"""
+	results = []
+	for i in range(len(dataset)):
+		if i%10 == 0 and i >=10:
+			model.load_state_dict(
+			torch.load(args.trained_model,
+					   map_location=lambda storage, loc: storage))
+			model = model.to(device)
+		print("Processing image", i)
+		timer.start("Load Image")
+		images, boxes, labels = dataset.__getitem__(i) #
+		image = images[0]
+		#print(images)
+		print("Load Image: {:4f} seconds.".format(timer.end("Load Image")))
+		timer.start("Predict")
+		boxes, labels, probs = predictor.predict(image)
+		if args.net != 'mobv2-ssdl' or args.net != 'mobv1-ssdl':
+			model.detach_hidden()
+		print("Prediction: {:4f} seconds.".format(timer.end("Predict")))
+		indexes = torch.ones(labels.size(0), 1, dtype=torch.float32) * i
+		tmprslt=torch.cat([
+			indexes.reshape(-1, 1),
+			labels.reshape(-1, 1).float(),
+			probs.reshape(-1, 1),
+			boxes + 1.0  # matlab's indexes start from 1
+		], dim=1)
+		if(tmprslt.shape[0] > 0):
+			results.append(tmprslt)
+		
+
+"""
 	seq_counter = 0
 	for i in range(len(dataset)):
 		print(i)
@@ -155,14 +191,15 @@ if __name__=='__main__':
 			seq_counter += 1
 		print("process image", i)
 		timer.start("Load Image")
-		image = images[i%10]
+		#image = images[i%10]#bij val dataset, niet test
+
 		print("Load Image: {:4f} seconds.".format(timer.end("Load Image")))
 		timer.start("Predict")
-		boxes, labels, probs = predictor.predict(image)
+		boxes, labels, probs = predictor.predict(image)"""
 	
 	#cv2.imshow('image',img)
-	cv2.waitKey(1)
-	cv2.destroyAllWindows()
+	#cv2.waitKey(1)
+	#cv2.destroyAllWindows()
 
 	
 

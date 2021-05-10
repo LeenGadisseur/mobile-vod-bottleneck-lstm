@@ -34,7 +34,7 @@ def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=
 	return nn.Sequential(
 		nn.Conv2d(in_channels=int(in_channels), out_channels=int(in_channels), kernel_size=kernel_size,
 			   groups=int(in_channels), stride=stride, padding=padding),
-		nn.ReLU6(),
+		nn.ReLU6(inplace=False),
 		nn.Conv2d(in_channels=int(in_channels), out_channels=int(out_channels), kernel_size=1),
 	)
 
@@ -129,6 +129,7 @@ def _make_divisible(v, divisor, min_value=None):
 #################################################################
 # Classe MobileNetV2 toevoegen + bijhorende structuren
 # https://github.com/d-li14/mobilenetv2.pytorch/blob/1733532bd43743442077326e1efc556d7cfd025d/models/imagenet/mobilenetv2.py#L91
+# https://github.com/qfgaohao/pytorch-ssd
 #################################################################
 class InvertedResidual(nn.Module):
 	def __init__(self, inp, oup, stride, expand_ratio, use_batch_norm=True):
@@ -243,6 +244,7 @@ class MobileNetV2(nn.Module):
 		x = self.features(x)
 		x = self.conv(x)
 		x = self.avgpool(x)
+
 		x = x.view(x.size(0), -1)
 		x = self.classifier(x)
 		return x
