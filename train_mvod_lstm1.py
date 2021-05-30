@@ -30,11 +30,13 @@ from network.multibox_loss import MultiboxLoss
 from config import mobilenetv1_ssd_config
 from dataloaders.data_preprocessing import TrainAugmentation, TestTransform
 
+DATASET_PATH_VID = "/media/leen/Acer_500GB_HDD/Imagenet_VID_dataset/ILSVRC/"
+
 parser = argparse.ArgumentParser(
 	description='Mobile Video Object Detection (Bottleneck LSTM) Training With Pytorch')
 
-parser.add_argument('--datasets', help='Dataset directory path')
-parser.add_argument('--cache_path', help='Cache directory path')
+parser.add_argument('--datasets', default= DATASET_PATH_VID , help='Dataset directory path')
+parser.add_argument('--cache_path', default= DATASET_PATH_VID , help='Cache directory path')
 parser.add_argument('--freeze_net', action='store_true',
 					help="Freeze all the layers except the prediction head.")
 parser.add_argument('--width_mult', default=1.0, type=float,
@@ -75,7 +77,7 @@ parser.add_argument('--t_max', default=120, type=float,
 					help='T_max value for Cosine Annealing Scheduler.')
 
 # Train params
-parser.add_argument('--batch_size', default=10, type=int,
+parser.add_argument('--batch_size', default=2, type=int,
 					help='Batch size for training')
 parser.add_argument('--num_epochs', default=200, type=int,
 					help='the number epochs')
@@ -125,7 +127,7 @@ def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1, 
 		images, boxes, labels = data
 		for image, box, label in zip(images, boxes, labels):
 			image = image.to(device)
-			print("fn_img:", image.filename)
+			#print("fn_img:", image.filename)
 			box = box.to(device)
 			label = label.to(device)
 

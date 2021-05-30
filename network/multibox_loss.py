@@ -50,4 +50,4 @@ class MultiboxLoss(nn.Module):
 		gt_locations = gt_locations[pos_mask, :].reshape(-1, 4)
 		smooth_l1_loss = F.smooth_l1_loss(predicted_locations, gt_locations, size_average=False)
 		num_pos = gt_locations.size(0)
-		return smooth_l1_loss/num_pos, classification_loss/num_pos
+		return smooth_l1_loss/num_pos, classification_loss/num_pos #Kan NaN terug geven => is niet het inplace probleem

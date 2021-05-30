@@ -57,7 +57,7 @@ parser.add_argument('--width_mult', default=1.0, type=float,
 					help='Width Multiplifier')
 
 # Params for SGD
-parser.add_argument('--lr', '--learning-rate', default=0.0003, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.3, type=float,
 					help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float,
 					help='Momentum value for optim')
@@ -121,7 +121,7 @@ if args.use_cuda and torch.cuda.is_available():
 
 #Definities
 def select_model(args, num_classes):#predictors hierbijzetten?
-	
+	global HIDDEN
 	if args.net == 'mobv1-ssdl':
 		#num_classes = 1024
 		model = net.mobv1_ssdlite_create(num_classes = 1024, alpha=args.width_mult, is_test=False)
@@ -229,6 +229,7 @@ def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epo
 		sequence_length : unroll length of model
 		epoch : current epoch number
 	"""
+	global HIDDEN
 	print("Training...")
 	model.train(True)
 	running_loss = 0.0
@@ -248,7 +249,7 @@ def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epo
 			optimizer.zero_grad()
 			torch.autograd.set_detect_anomaly(True)
 			confidence, locations = model(image)
-			print("Confidence and locations: ",confidence.shape, locations.shape)
+			#print("Confidence, locations and labels: ",confidence.shape, locations.shape, label.shape)
 			regression_loss, classification_loss = criterion(confidence, locations, label, box)  # TODO CHANGE BOXES
 			loss = regression_loss + classification_loss
 			loss.backward(retain_graph=True)
@@ -258,7 +259,10 @@ def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epo
 			running_loss += loss.item()
 			running_regression_loss += regression_loss.item()
 			running_classification_loss += classification_loss.item()
+
+
 		if HIDDEN :
+			print("Detach hidden layers.")
 			model.detach_hidden()
 		if i and i % debug_steps == 0:
 			avg_loss = running_loss / (debug_steps*sequence_length)
@@ -274,6 +278,7 @@ def test_train(loader, model, criterion, optimizer, device, debug_steps=100, epo
 			running_regression_loss = 0.0
 			running_classification_loss = 0.0
 	if HIDDEN :
+		print("Detach hidden layers.")
 		model.detach_hidden()
 
 
@@ -308,7 +313,9 @@ def val(loader, model, criterion, device):
 			running_loss += loss.item()
 			running_regression_loss += regression_loss.item()
 			running_classification_loss += classification_loss.item()
-		model.detach_hidden()
+		if HIDDEN:
+			print("Detach hidden layers.")
+			model.detach_hidden()
 	return running_loss / num, running_regression_loss / num, running_classification_loss / num
 
 def initialize_model(model):
@@ -339,6 +346,9 @@ def initialize_model(model):
 				#keys.append(k)
 		model.base_net.load_state_dict(dict_base)
 
+	#for param in model.extras.parameters():
+	#		print(param.data)
+
 
 #Main
 if __name__=='__main__':
@@ -360,6 +370,7 @@ if __name__=='__main__':
 	#label_file = LABEL_PATH_VOC_DEFAULT
 	store_labels(label_file, train_dataset._classes_names)
 	num_classes = len(train_dataset._classes_names)
+	print(train_dataset._classes_names)
 
 	logging.info(f"Stored labels into file {label_file}.")
 	logging.info("Train dataset size: {}".format(len(train_dataset)))
@@ -370,6 +381,7 @@ if __name__=='__main__':
 
 	#Weights
 	logging.info("Build network.")
+	print("Number of classes",num_classes )
 	model = select_model(args, num_classes)
 	print(model)
 		#Pretrained weights of resume
@@ -410,6 +422,7 @@ if __name__=='__main__':
 
 	#wat?
 	#combinatie tussen  classification loss en Smooth L1 regression loss
+	print("Priors", len(config.priors))
 	criterion = MultiboxLoss(config.priors, iou_threshold=0.5, neg_pos_ratio=3,
 							 center_variance=0.1, size_variance=0.2, device=DEVICE)
 

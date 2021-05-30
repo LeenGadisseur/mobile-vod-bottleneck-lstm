@@ -48,12 +48,10 @@ class EPFLDataset:
 			self.seq_list = self.seq_list[:-(rem)]
 		#print("Seq_list:", self.seq_list)
 		#logging.info("using default Imagenet VID classes.")
-		self._classes_names = ['__background__',  # always index 0
-					'person']
+		self._classes_names = [	'person']
 
 		#Klassen in de annotatie files
-		self._classes_map = ['__background__',  # always index 0
-						'"person"']
+		self._classes_map = [ '"person"']
 
 		self._name_to_class = {self._classes_map[i]: self._classes_names[i] for i in range(len(self._classes_names))}
 		

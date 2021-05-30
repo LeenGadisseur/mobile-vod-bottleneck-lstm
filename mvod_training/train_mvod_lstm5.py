@@ -217,7 +217,8 @@ if __name__ == '__main__':
 	logging.info("Prepare training datasets.")
 	train_dataset = VIDDataset(args.datasets, args.cache_path, transform=train_transform,
 								 target_transform=target_transform)
-	label_file = os.path.join("models/", "vid-model-labels.txt")
+	#label_file = os.path.join("models/", "vid-model-labels.txt")
+	label_file = os.path.join("models/", "EPFL-labels.txt")
 	store_labels(label_file, train_dataset._classes_names)
 	num_classes = len(train_dataset._classes_names)
 	logging.info(f"Stored labels into file {label_file}.")
